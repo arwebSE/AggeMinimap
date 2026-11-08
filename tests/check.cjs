@@ -24,6 +24,10 @@ assert.ok(mask.subarray(18).every(value => value === 255));
 const setup = `
 SlashCmdList = {}
 UISpecialFrames = {}
+C_AddOns = {GetAddOnMetadata = function(name, key)
+    assert(name == 'AggeMinimap' and key == 'Version')
+    return 'test-version'
+end}
 local frames = {}
 local combat = false
 local hooks = 0
@@ -289,6 +293,7 @@ Fire('PLAYER_LOGIN')
 Fire('PLAYER_ENTERING_WORLD')
 assert(categoryCount == 1, 'category must only register once')
 assert(#messages == 1 and messages[1]:find('Loaded. /amm for settings.', 1, true))
+assert(messages[1]:find('AggeMinimap vtest-version:', 1, true), 'message must use addon metadata version')
 `;
 for (const delayed of [false, true]) {
   const state = lauxlib.luaL_newstate();

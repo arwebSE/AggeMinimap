@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+
+- Login/reload message now includes the installed version, read from addon metadata.
+
 ## 1.2.1
 
 - Added the Map size and Spacing sliders to Options → AddOns → AggeMinimap.

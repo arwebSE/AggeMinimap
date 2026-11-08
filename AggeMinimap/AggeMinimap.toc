@@ -2,7 +2,7 @@
 ## Title: AggeMinimap
 ## Notes: A clean, square minimap for WoW Forever.
 ## Author: Agge
-## Version: 1.2.1
+## Version: 1.2.2
 ## OptionalDeps: Blizzard_Minimap
 ## SavedVariables: AggeMinimapDB
 

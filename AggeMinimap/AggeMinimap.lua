@@ -1,4 +1,5 @@
 local addonName = ...
+local addonVersion = C_AddOns.GetAddOnMetadata(addonName, "Version") or "unknown"
 local events = CreateFrame("Frame")
 local border
 local hookedCluster
@@ -310,6 +311,6 @@ events:SetScript("OnEvent", function(self, event, name)
     ApplyStyle()
     if event == "PLAYER_LOGIN" and not announced then
         announced = true
-        print("|cff54cdb1AggeMinimap:|r Loaded. /amm for settings.")
+        print("|cff54cdb1AggeMinimap v" .. addonVersion .. ":|r Loaded. /amm for settings.")
     end
 end)
