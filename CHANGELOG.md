@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- Added the project icon to the in-game AddOns list.
+- Listed AggeMinimap under the Maps category.
+
 ## 1.2.2
 
 - Login/reload message now includes the installed version, read from addon metadata.

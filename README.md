@@ -8,6 +8,7 @@ A clean, square minimap for **World of Warcraft: Forever (Camelot)**.
 - Compact, single-row header above or below the map: tracking, zone name, clock, calendar, and addon compartment.
 - `/amm` and **Options → AddOns → AggeMinimap** offer the same two sliders: **Map size** (160–360 UI pixels) and **Spacing** (0–40 UI pixels).
 - A short login/reload message reminds you of the `/amm` command.
+- Project icon and Maps category in the in-game AddOns list.
 - Native zoom, map clicks, tracking, mail, and minimap buttons remain available.
 - Blizzard Edit Mode controls position, additional scaling, and header placement.
 - No external libraries or polling timers.
@@ -27,6 +28,7 @@ Interface/AddOns/AggeMinimap/AggeMinimap.toc
 Interface/AddOns/AggeMinimap/AggeMinimap_Camelot.toc
 Interface/AddOns/AggeMinimap/AggeMinimap.lua
 Interface/AddOns/AggeMinimap/Square.tga
+Interface/AddOns/AggeMinimap/Icon.tga
 ```
 
 Disable other minimap skins, including DejaMinimap, to avoid competing layout changes. Updating an existing installation normally requires `/reload`. If upgrading from the early `AggeMiniMap` spelling, replace the old folder and restart WoW once. Disable the addon and reload to restore Blizzard's layout.

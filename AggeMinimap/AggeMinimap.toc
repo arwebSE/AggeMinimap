@@ -1,8 +1,10 @@
 ## Interface: 16001
 ## Title: AggeMinimap
+## IconTexture: Interface\AddOns\AggeMinimap\Icon.tga
+## Category: Maps
 ## Notes: A clean, square minimap for WoW Forever.
 ## Author: Agge
-## Version: 1.2.2
+## Version: 1.2.3
 ## OptionalDeps: Blizzard_Minimap
 ## SavedVariables: AggeMinimapDB
 
