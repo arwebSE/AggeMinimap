@@ -50,7 +50,7 @@ npm test
 
 Tests check Lua 5.1 syntax, manifests, mask, load order, rotation updates, combat deferral, square dimensions, scaled single-row layouts, slider bounds, and window reuse. The package script verifies both manifests agree and builds only the addon, license, README, and changelog. Local backups, development dependencies, and submission assets are excluded.
 
-See [release testing](docs/TESTING.md) and the [CurseForge submission kit](docs/CURSEFORGE.md).
+See [release testing](docs/TESTING.md) for development checks.
 
 ## License
 
