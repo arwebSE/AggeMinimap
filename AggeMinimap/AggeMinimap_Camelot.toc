@@ -4,7 +4,8 @@
 ## Category: Maps
 ## Notes: A clean, square minimap for WoW Forever.
 ## Author: Agge
-## Version: 1.2.3
+## Version: 1.2.4
+## X-Curse-Project-ID: 1792808
 ## OptionalDeps: Blizzard_Minimap
 ## SavedVariables: AggeMinimapDB
 

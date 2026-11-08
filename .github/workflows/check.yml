@@ -23,3 +23,20 @@ jobs:
           name: AggeMinimap
           path: dist/AggeMinimap-*.zip
           if-no-files-found: error
+  curseforge-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Build using CurseForge-compatible package metadata
+        uses: BigWigsMods/packager@v2.7.0
+        with:
+          args: -d -g 1.60.1
+      - name: Verify installable layout and excluded development files
+        run: python3 scripts/check-package.py
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: AggeMinimap-CurseForge
+          path: .release/*.zip
+          if-no-files-found: error

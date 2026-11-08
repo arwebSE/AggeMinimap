@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+- Added automatic-packager configuration with the correct addon folder layout.
+- Added the CurseForge project ID to both manifests.
+- Added a separate packager build check to CI.
+
 ## 1.2.3
 
 - Added the project icon to the in-game AddOns list.

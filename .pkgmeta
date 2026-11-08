@@ -1,0 +1,20 @@
+package-as: AggeMinimap
+enable-nolib-creation: no
+
+move-folders:
+  AggeMinimap/AggeMinimap: AggeMinimap
+
+ignore:
+  - assets
+  - backups
+  - dist
+  - docs
+  - node_modules
+  - scripts
+  - tests
+  - package.json
+  - package-lock.json
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
