@@ -5,6 +5,7 @@ local hookedCluster
 local hookedHeader
 local headerUnderneath = false
 local settingsWindow
+local announced = false
 local function GetNumberSetting(key, default, minimum, maximum)
     local value = type(AggeMinimapDB) == "table" and AggeMinimapDB[key]
     if type(value) ~= "number" or value ~= value then
@@ -95,6 +96,54 @@ local function ApplyLayout()
     end
 end
 
+local settingsControls = {}
+local refreshingControls = false
+local settingsCategory
+
+local function RefreshSettingsControls()
+    refreshingControls = true
+    for _, controls in ipairs(settingsControls) do
+        controls.spacing:SetValue(GetSpacing())
+        controls.size:SetValue(GetMapSize())
+        controls.spacingText:SetText("Spacing: " .. GetSpacing() .. " px")
+        controls.sizeText:SetText("Map size: " .. GetMapSize() .. " × " .. GetMapSize())
+    end
+    refreshingControls = false
+end
+
+local function CreateSettingsControls(parent, prefix)
+    local controls = {}
+    local function Slider(suffix, key, offset, minimum, maximum, low, high)
+        local name = prefix .. suffix
+        local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
+        slider:SetPoint("TOP", 0, offset)
+        slider:SetWidth(250)
+        slider:SetMinMaxValues(minimum, maximum)
+        slider:SetValueStep(1)
+        slider:SetObeyStepOnDrag(true)
+        _G[name .. "Low"]:SetText(low)
+        _G[name .. "High"]:SetText(high)
+        slider:SetScript("OnValueChanged", function(_, value)
+            if refreshingControls then
+                return
+            end
+            AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+            AggeMinimapDB[key] = math.max(minimum, math.min(maximum, math.floor(value + 0.5)))
+            RefreshSettingsControls()
+            ApplyLayout()
+        end)
+        return slider, _G[name .. "Text"]
+    end
+    controls.size, controls.sizeText = Slider("Size", "size", -65, 160, 360, "160", "360")
+    controls.spacing, controls.spacingText = Slider("Spacing", "spacing", -130, 0, 40, "Tight", "Roomy")
+    local note = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    note:SetPoint("BOTTOM", 0, 18)
+    note:SetText("Changes apply after combat if you are fighting.")
+    table.insert(settingsControls, controls)
+    RefreshSettingsControls()
+    return controls
+end
+
 local function OpenSettings()
     if not settingsWindow then
         local panel = CreateFrame("Frame", "AggeMinimapSettings", UIParent, "BasicFrameTemplateWithInset")
@@ -103,51 +152,41 @@ local function OpenSettings()
         panel:SetFrameStrata("DIALOG")
         panel:SetClampedToScreen(true)
         panel.TitleText:SetText("AggeMinimap")
-        local slider = CreateFrame("Slider", "AggeMinimapSpacing", panel, "OptionsSliderTemplate")
-        slider:SetPoint("TOP", 0, -130)
-        slider:SetWidth(250)
-        slider:SetMinMaxValues(0, 40)
-        slider:SetValueStep(1)
-        slider:SetObeyStepOnDrag(true)
-        _G[slider:GetName() .. "Low"]:SetText("Tight")
-        _G[slider:GetName() .. "High"]:SetText("Roomy")
-        slider:SetScript("OnValueChanged", function(self, value)
-            AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
-            AggeMinimapDB.spacing = math.floor(value + 0.5)
-            _G[self:GetName() .. "Text"]:SetText("Spacing: " .. GetSpacing() .. " px")
-            ApplyLayout()
-        end)
-        local note = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        note:SetPoint("BOTTOM", 0, 18)
-        note:SetText("Changes apply after combat if you are fighting.")
-        panel.slider = slider
-        local sizeSlider = CreateFrame("Slider", "AggeMinimapSize", panel, "OptionsSliderTemplate")
-        sizeSlider:SetPoint("TOP", 0, -65)
-        sizeSlider:SetWidth(250)
-        sizeSlider:SetMinMaxValues(160, 360)
-        sizeSlider:SetValueStep(1)
-        sizeSlider:SetObeyStepOnDrag(true)
-        AggeMinimapSizeLow:SetText("160")
-        AggeMinimapSizeHigh:SetText("360")
-        sizeSlider:SetScript("OnValueChanged", function(_, value)
-            AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
-            AggeMinimapDB.size = math.floor(value + 0.5)
-            AggeMinimapSizeText:SetText("Map size: " .. GetMapSize() .. " × " .. GetMapSize())
-            ApplyLayout()
-        end)
-        panel.sizeSlider = sizeSlider
+        CreateSettingsControls(panel, "AggeMinimap")
+        panel:SetScript("OnShow", RefreshSettingsControls)
         table.insert(UISpecialFrames, "AggeMinimapSettings")
         settingsWindow = panel
     end
-    settingsWindow.slider:SetValue(GetSpacing())
-    settingsWindow.sizeSlider:SetValue(GetMapSize())
-    AggeMinimapSizeText:SetText("Map size: " .. GetMapSize() .. " × " .. GetMapSize())
-    AggeMinimapSpacingText:SetText("Spacing: " .. GetSpacing() .. " px")
+    RefreshSettingsControls()
     settingsWindow:Show()
+end
+
+local function RegisterSettings()
+    if settingsCategory or not Settings or not Settings.RegisterCanvasLayoutCategory or not Settings.RegisterAddOnCategory then
+        return
+    end
+    local panel = CreateFrame("Frame", "AggeMinimapOptions")
+    panel:Hide()
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("AggeMinimap")
+    -- Construct the same controls on demand, with separate names for each view.
+    panel:SetScript("OnShow", function(self)
+        if not self.controls then
+            local content = CreateFrame("Frame", nil, self)
+            content:SetSize(310, 220)
+            content:SetPoint("TOPLEFT", 16, -40)
+            self.controls = CreateSettingsControls(content, "AggeMinimapOptions")
+        end
+        RefreshSettingsControls()
+    end)
+    settingsCategory = Settings.RegisterCanvasLayoutCategory(panel, "AggeMinimap")
+    Settings.RegisterAddOnCategory(settingsCategory)
 end
 
 SLASH_AGGEMINIMAP1 = "/amm"
 SlashCmdList.AGGEMINIMAP = OpenSettings
+
 
 local function HideArt(region)
     if region then
@@ -258,12 +297,19 @@ end
 
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(self, event, name)
-    if event == "ADDON_LOADED" and name ~= addonName and name ~= "Blizzard_Minimap" and name ~= "Blizzard_TimeManager" then
+    if event == "ADDON_LOADED" and name ~= addonName and name ~= "Blizzard_Minimap" and name ~= "Blizzard_TimeManager"
+        and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" then
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then
         self:UnregisterEvent(event)
     end
+    RegisterSettings()
     ApplyStyle()
+    if event == "PLAYER_LOGIN" and not announced then
+        announced = true
+        print("|cff54cdb1AggeMinimap:|r Loaded. /amm for settings.")
+    end
 end)

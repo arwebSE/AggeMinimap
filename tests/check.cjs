@@ -27,6 +27,21 @@ UISpecialFrames = {}
 local frames = {}
 local combat = false
 local hooks = 0
+local messages = {}
+function print(message) table.insert(messages, message) end
+local categoryCount = 0
+local function InstallSettings()
+    Settings = {
+        RegisterCanvasLayoutCategory = function(panel, name)
+            assert(name == 'AggeMinimap')
+            return {panel = panel, name = name}
+        end,
+        RegisterAddOnCategory = function(category)
+            categoryCount = categoryCount + 1
+            assert(category.panel == AggeMinimapOptions)
+        end,
+    }
+end
 local function Region()
     return setmetatable({ alpha = 1, points = {}, events = {}, width = 198, height = 198, scale = 1 }, { __index = {
         SetAlpha = function(self, value) self.alpha = value end,
@@ -55,7 +70,12 @@ local function Region()
             self.value = value
             if self.OnValueChanged then self:OnValueChanged(value) end
         end,
-        Show = function(self) self.shown = true end,
+        Show = function(self)
+            local wasShown = self.shown
+            self.shown = true
+            if not wasShown and self.OnShow then self:OnShow() end
+        end,
+        Hide = function(self) self.shown = false end,
         CreateFontString = function() return Region() end,
         EnableMouse = function() end,
         SetColorTexture = function() end,
@@ -251,6 +271,24 @@ assert(MinimapZoneText.wordWrap == false and MinimapZoneText.nonSpaceWrap == fal
 AggeMinimapSize:SetValue(240)
 assert(Minimap.width == 240 and Minimap.height == 240 and AggeMinimapDB.size == 240)
 assert(AggeMinimapSizeText.text == 'Map size: 240 × 240')
+InstallSettings()
+Fire('ADDON_LOADED', 'Blizzard_Settings_Shared')
+assert(categoryCount == 1 and not AggeMinimapOptions.shown)
+AggeMinimapOptions:Show()
+assert(AggeMinimapOptionsSize.value == 240)
+assert(AggeMinimapOptionsSpacing.value == AggeMinimapDB.spacing)
+AggeMinimapOptionsSize:SetValue(250)
+assert(AggeMinimapDB.size == 250 and Minimap.width == 250)
+assert(AggeMinimapSize.value == 250, 'Options changes must sync to /amm')
+AggeMinimapSpacing:SetValue(9)
+assert(AggeMinimapOptionsSpacing.value == 9, '/amm changes must sync to Options')
+AggeMinimapOptions:Hide()
+AggeMinimapOptions:Show()
+Fire('PLAYER_LOGIN')
+Fire('PLAYER_LOGIN')
+Fire('PLAYER_ENTERING_WORLD')
+assert(categoryCount == 1, 'category must only register once')
+assert(#messages == 1 and messages[1]:find('Loaded. /amm for settings.', 1, true))
 `;
 for (const delayed of [false, true]) {
   const state = lauxlib.luaL_newstate();
@@ -261,4 +299,4 @@ for (const delayed of [false, true]) {
   if (status !== lua.LUA_OK) throw new Error(to_jsstring(lua.lua_tostring(state, -1)));
   lua.lua_close(state);
 }
-console.log('PASS: Lua 5.1 syntax, manifests, mask, startup, delayed loading, native controls, rotation, combat deferral, compact bounds, scaling, header placement, spacing limits, /amm slider and reopening.');
+console.log('PASS: Lua 5.1 syntax, manifests, mask, lifecycle, square layouts, sliders, combat deferral, Options registration, synchronized settings views, and single login message.');

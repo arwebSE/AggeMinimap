@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+- Added the Map size and Spacing sliders to Options → AddOns → AggeMinimap.
+- Both settings views update the same saved values and stay synchronized.
+- Added a single login/reload message: "AggeMinimap: Loaded. /amm for settings."
+
+Automated checks cover Options registration, synchronization, and the login message. In-game verification of this update is pending.
+
 ## 1.2.0-beta.1
 
 First public beta for WoW Forever (interface 16001).
