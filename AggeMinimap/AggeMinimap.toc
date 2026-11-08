@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: AggeMinimap
+## Notes: A clean, square minimap for WoW Forever.
+## Author: Agge
+## Version: 1.2.0-beta.1
+## OptionalDeps: Blizzard_Minimap
+## SavedVariables: AggeMinimapDB
+
+AggeMinimap.lua
