@@ -11,7 +11,7 @@ Open the [CurseForge Authors Console](https://authors.curseforge.com/#/projects/
 | Class | Addons |
 | Main category | Map & Minimap |
 | License | MIT License |
-| Avatar | `assets/AggeMinimap-icon.png` (original 400 × 400 PNG) |
+| Avatar | `assets/AggeMinimap-icon.png` (square PNG; export a 400 × 400 copy if requested by the console) |
 | Description | Paste `docs/CURSEFORGE-DESCRIPTION.md` |
 | Source | https://github.com/arwebSE/AggeMinimap |
 | Issues | https://github.com/arwebSE/AggeMinimap/issues |
