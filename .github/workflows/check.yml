@@ -6,15 +6,19 @@ permissions:
   contents: read
 jobs:
   check:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm test
+      - name: Install Lua 5.1
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - name: Check syntax with the Lua 5.1 compiler
+        run: luac5.1 -p AggeMinimap/AggeMinimap.lua tests/runtime.lua
+      - name: Test normal minimap loading
+        run: lua5.1 tests/runtime.lua
+      - name: Test delayed minimap loading
+        run: lua5.1 tests/runtime.lua delayed
+      - name: Check manifests and textures
+        run: python3 tests/check-inputs.py
       - name: Build addon ZIP
         shell: pwsh
         run: ./scripts/package.ps1

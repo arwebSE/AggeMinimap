@@ -1,6 +1,0 @@
-{
-  "name": "aggeminimap-checks",
-  "private": true,
-  "scripts": { "test": "node tests/check.cjs" },
-  "devDependencies": { "fengari": "0.1.5", "luaparse": "0.3.1" }
-}

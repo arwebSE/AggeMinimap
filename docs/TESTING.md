@@ -1,13 +1,17 @@
 # Release testing
 
-Run `npm ci`, `npm test`, and `./scripts/package.ps1` before tagging a release.
-
-The behavior tests and simulated WoW environment are written in `tests/runtime.lua`. `npm test` checks Lua 5.1 syntax and package inputs, then runs that Lua file in fresh environments for normal and delayed minimap loading. With a Lua 5.1+ interpreter installed, you can also run them directly from the repository root:
+Install Lua 5.1 (interpreter and compiler), Python 3, and PowerShell 7. Run the following from the repository root before tagging a release. On systems with versioned executable names, substitute `lua5.1` and `luac5.1` for `lua` and `luac`.
 
 ```sh
+luac -p AggeMinimap/AggeMinimap.lua tests/runtime.lua
 lua tests/runtime.lua
 lua tests/runtime.lua delayed
+python tests/check-inputs.py
+python tests/check-release.py
+pwsh -File scripts/package.ps1
 ```
+
+The behavior tests and simulated WoW environment are written in `tests/runtime.lua` and run in separate Lua processes for normal and delayed minimap loading. Syntax checks use the native Lua 5.1 compiler. Python checks manifest and texture inputs, release guards, and packaged archive contents; it requires no third-party libraries. CI uses the same checks and also verifies the external CurseForge packager output with `python3 scripts/check-package.py`.
 
 The tests simulate WoW frames. Before promoting the beta to a stable Release, verify the following in the actual Forever client:
 

@@ -2,7 +2,6 @@
 *.lua text eol=lf
 *.toc text eol=lf
 *.md text eol=lf
-*.cjs text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
 *.ps1 text eol=lf

@@ -35,17 +35,20 @@ Extract the addon ZIP into your Forever client's `Interface/AddOns` folder. The 
 <details>
 <summary>Development and verification</summary>
 
-Requires Node.js and PowerShell 7.
+Requires Lua 5.1 (including `luac`), Python 3, and PowerShell 7. Some systems name the Lua commands `lua5.1` and `luac5.1`.
 
 ```powershell
-npm ci
-npm test
+luac -p AggeMinimap/AggeMinimap.lua tests/runtime.lua
+lua tests/runtime.lua
+lua tests/runtime.lua delayed
+python tests/check-inputs.py
+python tests/check-release.py
 ./scripts/package.ps1
 ```
 
 Automated tests check Lua syntax, manifests, rectangular dimensions, aspect linking, negative spacing, scaled header layouts, settings, load order and combat deferral in a simulated WoW environment. Client behavior and appearance also require in-game verification when changes are made. See [release testing](docs/TESTING.md).
 
-The WoW simulation and behavior tests live in `tests/runtime.lua` and can also run directly with Lua 5.1+. `npm test` runs them in both loading modes through a small Node launcher, which also checks syntax, manifests, and textures.
+The WoW simulation and behavior tests live in `tests/runtime.lua` and run directly with Lua. CI uses the native Lua 5.1 compiler for syntax checks and the interpreter for both loading modes. Python checks manifests, textures, and release packages without third-party dependencies.
 
 The package script includes the addon, license, README and changelog. Local backups, development dependencies and submission assets are excluded. No external libraries or polling timers are required by the addon.
 
