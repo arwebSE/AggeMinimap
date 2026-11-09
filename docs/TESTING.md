@@ -2,6 +2,13 @@
 
 Run `npm ci`, `npm test`, and `./scripts/package.ps1` before tagging a release.
 
+The behavior tests and simulated WoW environment are written in `tests/runtime.lua`. `npm test` checks Lua 5.1 syntax and package inputs, then runs that Lua file in fresh environments for normal and delayed minimap loading. With a Lua 5.1+ interpreter installed, you can also run them directly from the repository root:
+
+```sh
+lua tests/runtime.lua
+lua tests/runtime.lua delayed
+```
+
 The tests simulate WoW frames. Before promoting the beta to a stable Release, verify the following in the actual Forever client:
 
 - Fresh login and `/reload` show a square map, thin border, and no Lua errors.

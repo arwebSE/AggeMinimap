@@ -45,6 +45,8 @@ npm test
 
 Automated tests check Lua syntax, manifests, rectangular dimensions, aspect linking, negative spacing, scaled header layouts, settings, load order and combat deferral in a simulated WoW environment. Client behavior and appearance also require in-game verification when changes are made. See [release testing](docs/TESTING.md).
 
+The WoW simulation and behavior tests live in `tests/runtime.lua` and can also run directly with Lua 5.1+. `npm test` runs them in both loading modes through a small Node launcher, which also checks syntax, manifests, and textures.
+
 The package script includes the addon, license, README and changelog. Local backups, development dependencies and submission assets are excluded. No external libraries or polling timers are required by the addon.
 
 </details>
