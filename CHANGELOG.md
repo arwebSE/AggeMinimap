@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.9
+
+- Removed the black padding around the addon icon so its frame fills the icon area.
+- Development checks now use native Lua 5.1 and Python, with no Node.js dependencies.
+
 ## 1.2.8
 
 - Matched AggeHealBot's welcome-message format and color: "AggeMinimap: v1.2.8 loaded. /amm for settings."
