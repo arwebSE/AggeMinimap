@@ -35,9 +35,39 @@ jobs:
           args: -d -g 1.60.1
       - name: Verify installable layout and excluded development files
         run: python3 scripts/check-package.py
+      - name: Test release-tag validation
+        run: python3 tests/check-release.py
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: AggeMinimap-CurseForge
           path: .release/*.zip
           if-no-files-found: error
           include-hidden-files: true
+  publish-curseforge:
+    name: Publish tagged release to CurseForge
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [check, curseforge-package]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: curseforge-publish-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check tag matches both addon versions
+        run: python3 scripts/check-release.py
+      - name: Check publishing credential is configured
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error::Add the CF_API_TOKEN repository secret before publishing."
+            exit 1
+          fi
+      - name: Upload Forever release to CurseForge
+        uses: BigWigsMods/packager@v2.7.0
+        with:
+          args: -g 1.60.1 -p 1792808
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
