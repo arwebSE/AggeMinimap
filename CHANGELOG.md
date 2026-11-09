@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.8
+
+- Matched AggeHealBot's welcome-message format and color: "AggeMinimap: v1.2.8 loaded. /amm for settings."
+
 ## 1.2.7
 
 - Fixed empty strips and detached borders after enlarging the map or changing its proportions by refreshing native rendering while preserving zoom.

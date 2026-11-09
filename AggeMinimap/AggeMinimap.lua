@@ -570,6 +570,6 @@ events:SetScript("OnEvent", function(self, event, name)
     ApplyStyle()
     if event == "PLAYER_LOGIN" and not announced then
         announced = true
-        print("|cff54cdb1AggeMinimap v" .. addonVersion .. ":|r Loaded. /amm for settings.")
+        print("|cff80e5b0AggeMinimap:|r v" .. addonVersion .. " loaded. /amm for settings.")
     end
 end)

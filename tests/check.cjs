@@ -479,8 +479,8 @@ Fire('PLAYER_LOGIN')
 Fire('PLAYER_LOGIN')
 Fire('PLAYER_ENTERING_WORLD')
 assert(categoryCount == 1, 'category must only register once')
-assert(#messages == 1 and messages[1]:find('Loaded. /amm for settings.', 1, true))
-assert(messages[1]:find('AggeMinimap vtest-version:', 1, true), 'message must use addon metadata version')
+assert(#messages == 1 and messages[1]:find('loaded. /amm for settings.', 1, true))
+assert(messages[1] == '|cff80e5b0AggeMinimap:|r vtest-version loaded. /amm for settings.', 'message must match HealBot format and use addon metadata version')
 `;
 for (const delayed of [false, true]) {
   const state = lauxlib.luaL_newstate();
