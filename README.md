@@ -6,6 +6,15 @@ A clean square or rectangular minimap for **WoW Forever**.
 
 ![AggeMinimap](assets/screenshots/square-minimap-in-game.png)
 
+<details>
+<summary>Settings and wide layout</summary>
+
+![Map layout and button settings](assets/screenshots/map-size-and-spacing-settings.png)
+
+![Wide minimap layout](assets/screenshots/wide-minimap-in-game.png)
+
+</details>
+
 - Separate width and height sliders, linked by default, plus spacing from −20 to 40 px.
 - Compact header above or below the map.
 - Move and scale with Blizzard Edit Mode.
