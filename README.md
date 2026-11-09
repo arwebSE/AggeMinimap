@@ -2,7 +2,7 @@
 
 A square minimap for **World of Warcraft: Forever**, with a compact header, adjustable size, and Blizzard Edit Mode support.
 
-**[Install from CurseForge](https://www.curseforge.com/wow/addons/aggeminimap)** · [Download ZIP](https://github.com/arwebSE/AggeMinimap/releases) · [Report a bug](https://github.com/arwebSE/AggeMinimap/issues)
+**[Install from CurseForge](https://www.curseforge.com/wow/addons/aggeminimap)** · [Latest GitHub release](https://github.com/arwebSE/AggeMinimap/releases/latest) · [Report a bug](https://github.com/arwebSE/AggeMinimap/issues)
 
 Keep your minimap clean with just two settings: **Map size** and **Spacing**. Your tracking menu, zone name, clock, calendar, and addon compartment stay together in one row.
 
@@ -51,13 +51,13 @@ Type **`/amm`** or open **Options → AddOns → AggeMinimap**. Use Blizzard **E
 
 Built for **WoW Forever 1.60.1 (Camelot), interface 16001**, with default and Camelot TOCs. Retail and other Classic clients are not supported. Future client changes may require updates.
 
-Automated tests cover layout, settings, loading, and combat deferral in a simulated frame environment. They do not replace in-game testing of every client patch or addon combination.
-
 Report issues at [GitHub Issues](https://github.com/arwebSE/AggeMinimap/issues), including your client build, addon version, other minimap addons, header placement, and a screenshot if relevant.
 
 ## Development
 
 Requires Node.js and PowerShell 7 for the release build.
+
+Automated tests cover layout, settings, loading, and combat deferral in a simulated frame environment. Client behavior and appearance also need in-game verification when changes are made.
 
 ```powershell
 npm ci
