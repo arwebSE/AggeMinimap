@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.7
+
+- Fixed empty strips and detached borders after enlarging the map or changing its proportions by refreshing native rendering while preserving zoom.
+- Added Reset defaults to both settings views, restoring dimensions, spacing, aspect linking, and icon positions.
+- Added separate width and height sliders, with aspect ratio linked by default and an option to resize independently.
+- New profiles default to 200 × 200 and 0 px spacing; defaults are shown beside the controls, and existing saved sizes carry over.
+- Allowed spacing down to −20 px to overlap the header with the map while keeping the full map inside Edit Mode bounds.
+- The AggeMinimap settings window can now be moved by dragging its title bar.
+- Restyled settings to match AggeHealBot, with the native character-window frame, dark background, gold selection outlines, and a two-column layout.
+
 ## 1.2.6
 
 - Right-click the minimap to open AggeMinimap options.

@@ -8,6 +8,7 @@ local hookedMap
 local headerUnderneath = false
 local settingsWindow
 local announced = false
+local renderedMap, renderedWidth, renderedHeight, renderedScale
 local function GetNumberSetting(key, default, minimum, maximum)
     local value = type(AggeMinimapDB) == "table" and AggeMinimapDB[key]
     if type(value) ~= "number" or value ~= value then
@@ -16,12 +17,42 @@ local function GetNumberSetting(key, default, minimum, maximum)
     return math.max(minimum, math.min(maximum, math.floor(value + 0.5)))
 end
 
-local function GetMapSize()
-    return GetNumberSetting("size", 198, 160, 360)
+local function GetMapDimension(key)
+    -- Preserve the old square-size setting when upgrading an existing profile.
+    return GetNumberSetting(key, GetNumberSetting("size", 200, 160, 360), 160, 360)
+end
+
+local function IsAspectLinked()
+    return type(AggeMinimapDB) ~= "table" or AggeMinimapDB.linkAspect ~= false
+end
+
+local function SetMapDimension(key, value)
+    local width, height = GetMapDimension("width"), GetMapDimension("height")
+    local function Round(number) return math.max(160, math.min(360, math.floor(number + 0.5))) end
+    if IsAspectLinked() then
+        local ratio = AggeMinimapDB.aspectRatio
+        if type(ratio) ~= "number" or ratio ~= ratio or ratio < 160 / 360 or ratio > 360 / 160 then
+            ratio = width / height
+        end
+        AggeMinimapDB.aspectRatio = ratio
+        -- Limit both dimensions together so the linked ratio survives the bounds.
+        if key == "width" then
+            width = math.max(math.max(160, 160 * ratio), math.min(math.min(360, 360 * ratio), value))
+            height = width / ratio
+        else
+            height = math.max(math.max(160, 160 / ratio), math.min(math.min(360, 360 / ratio), value))
+            width = height * ratio
+        end
+    elseif key == "width" then
+        width = value
+    else
+        height = value
+    end
+    AggeMinimapDB.width, AggeMinimapDB.height = Round(width), Round(height)
 end
 
 local function GetSpacing()
-    return GetNumberSetting("spacing", 2, 0, 40)
+    return GetNumberSetting("spacing", 0, -20, 40)
 end
 
 local sunCorners = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"}
@@ -50,28 +81,37 @@ local function ApplyLayout()
 
     local spacing = GetSpacing()
     local scale = container:GetScale()
-    local width = GetMapSize()
-    local height = width
+    local width = GetMapDimension("width")
+    local height = GetMapDimension("height")
     if not scale or scale <= 0 or width <= 0 or height <= 0 then
         return
     end
     -- The stock container includes room for circular art outside the map.
-    -- Fit it to the actual square, then size the Edit Mode frame explicitly.
+    -- Fit it to the map, then size the Edit Mode frame explicitly.
     map:SetSize(width, height)
     container:SetSize(width, height)
+    map:ClearAllPoints()
+    map:SetPoint("CENTER", container, "CENTER", 0, 0)
+    if border then
+        -- Size the border explicitly on every resize instead of relying on
+        -- two opposing anchors being refreshed by the native minimap frame.
+        border:SetSize(width + 2, height + 2)
+    end
     local header = cluster.ZoneTextButton
     local desiredHeaderScale = cluster.scaleMinimapHeader and math.max(scale, 1) or 1
     local rowScale = math.min(desiredHeaderScale, width * scale / 198)
     local rowHeight = 23 * rowScale
-    local frameWidth = width * scale + 2 * spacing
-    local frameHeight = height * scale + rowHeight + 3 * spacing
+    local outerSpacing = math.max(0, spacing)
+    local headerGap = math.max(spacing, -rowHeight)
+    local frameWidth = width * scale + 2 * outerSpacing
+    local frameHeight = height * scale + rowHeight + 2 * outerSpacing + headerGap
     cluster:SetFixedSize(frameWidth, frameHeight)
     cluster:SetSize(frameWidth, frameHeight)
     cluster:SetHitRectInsets(0, 0, 0, 0)
 
     container:ClearAllPoints()
     container:SetPoint("TOP", cluster, "TOP", 0,
-        -(spacing + (headerUnderneath and 0 or rowHeight + spacing)) / scale)
+        -(outerSpacing + (headerUnderneath and 0 or rowHeight + headerGap)) / scale)
 
     -- Keep the native zoom buttons and their hover area on the selected edge.
     local zoomSide = GetPositionSetting("zoomSide", zoomSides, "LEFT")
@@ -101,7 +141,7 @@ local function ApplyLayout()
             corner:find("LEFT") and 4 or -4, corner:find("TOP") and -4 or 4)
     end
 
-    local rowY = headerUnderneath and (height * scale + 2 * spacing) or spacing
+    local rowY = headerUnderneath and (height * scale + outerSpacing + headerGap) or outerSpacing
     local rowWidth = width * scale / rowScale
     local gap = 3
     local left, right = 0, rowWidth
@@ -110,7 +150,7 @@ local function ApplyLayout()
         frame:SetSize(elementWidth, elementHeight)
         frame:ClearAllPoints()
         frame:SetPoint("TOPLEFT", cluster, "TOPLEFT",
-            spacing / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
+            outerSpacing / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
     end
     -- Anchor every header control to the same row. Do not inherit Blizzard's
     -- stacked calendar/compartment anchors or its clock-inside-zone placement.
@@ -137,23 +177,96 @@ local function ApplyLayout()
             MinimapZoneText:SetNonSpaceWrap(false)
         end
     end
+
+    -- Changing the frame dimensions can leave the native map render surface at
+    -- its old size. Rebuild it through the zoom API, without button clicks or
+    -- sounds, and restore the user's zoom before the next rendered frame.
+    local renderScale = map.GetEffectiveScale and map:GetEffectiveScale() or scale
+    if map ~= renderedMap or width ~= renderedWidth or height ~= renderedHeight or renderScale ~= renderedScale then
+        if map.GetZoom and map.SetZoom and map.GetZoomLevels and map:GetZoomLevels() > 1 then
+            renderedMap, renderedWidth, renderedHeight, renderedScale = map, width, height, renderScale
+            local zoom = map:GetZoom()
+            map:SetZoom(zoom == 0 and 1 or zoom - 1)
+            map:SetZoom(zoom)
+        end
+    end
 end
 
 local settingsControls = {}
 local refreshingControls = false
 local settingsCategory
 
+local function SettingsText(parent, value, x, y, font)
+    local text = parent:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
+    text:SetPoint("TOPLEFT", x, y)
+    text:SetText(value)
+    text:SetJustifyH("LEFT")
+    if font == "GameFontHighlightSmall" then
+        text:SetTextColor(0.8, 0.73, 0.6)
+    end
+    return text
+end
+
+local function SettingsButton(parent, name, label, width, x, y)
+    local button = CreateFrame("Button", name, parent)
+    button:SetSize(width, 28)
+    button:SetPoint("TOPLEFT", x, y)
+    local fill = button:CreateTexture(nil, "BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetAtlas("UI-Character-Info-Title")
+    fill:SetVertexColor(0.65, 0.65, 0.68)
+    button.highlight = button:CreateTexture(nil, "ARTWORK")
+    button.highlight:SetAllPoints()
+    button.highlight:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
+    button.highlight:SetVertexColor(0.78, 0.81, 0.86)
+    button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    button.label:SetPoint("LEFT", 8, 0)
+    button.label:SetPoint("RIGHT", -8, 0)
+    button.label:SetJustifyH("CENTER")
+    function button:SetText(value) self.label:SetText(value) end
+    button.selection = {}
+    for _, edge in ipairs({"TOP", "BOTTOM", "LEFT", "RIGHT"}) do
+        local line = button:CreateTexture(nil, "OVERLAY")
+        line:SetColorTexture(1, 0.76, 0.2, 0.85)
+        if edge == "TOP" or edge == "BOTTOM" then
+            line:SetPoint(edge .. "LEFT")
+            line:SetPoint(edge .. "RIGHT")
+            line:SetHeight(1)
+        else
+            line:SetPoint("TOP" .. edge)
+            line:SetPoint("BOTTOM" .. edge)
+            line:SetWidth(1)
+        end
+        table.insert(button.selection, line)
+    end
+    function button:Select(selected)
+        self.selected = selected
+        self.highlight:SetAlpha(selected and 0.4 or 0)
+        self.label:SetTextColor(1, selected and 0.82 or 0.95, selected and 0.2 or 0.85)
+        for _, line in ipairs(self.selection) do line:SetAlpha(selected and 1 or 0) end
+    end
+    button:SetText(label)
+    button:Select(false)
+    button:SetScript("OnEnter", function(self) self.highlight:SetAlpha(self.selected and 0.5 or 0.25) end)
+    button:SetScript("OnLeave", function(self) self:Select(self.selected) end)
+    return button
+end
+
 local function RefreshSettingsControls()
     refreshingControls = true
     for _, controls in ipairs(settingsControls) do
         controls.spacing:SetValue(GetSpacing())
-        controls.size:SetValue(GetMapSize())
+        controls.width:SetValue(GetMapDimension("width"))
+        controls.height:SetValue(GetMapDimension("height"))
         controls.spacingText:SetText("Spacing: " .. GetSpacing() .. " px")
-        controls.sizeText:SetText("Map size: " .. GetMapSize() .. " × " .. GetMapSize())
+        controls.widthText:SetText("Width: " .. GetMapDimension("width") .. " px")
+        controls.heightText:SetText("Height: " .. GetMapDimension("height") .. " px")
+        controls.link:SetText(IsAspectLinked() and "Aspect ratio: Linked" or "Aspect ratio: Unlinked")
+        controls.link:Select(IsAspectLinked())
         for _, group in ipairs(controls.positions) do
             local selected = GetPositionSetting(group.key, group.choices, group.default)
             for _, button in ipairs(group.buttons) do
-                button:SetText((button.value == selected and "|cff54cdb1" or "|cffffffff") .. button.label .. "|r")
+                button:Select(button.value == selected)
             end
         end
     end
@@ -162,11 +275,18 @@ end
 
 local function CreateSettingsControls(parent, prefix)
     local controls = {}
+    SettingsText(parent, "MAP LAYOUT", 0, 0)
+    SettingsText(parent, "Adjust map dimensions and header gap.", 0, -23, "GameFontHighlightSmall")
+    SettingsText(parent, "BUTTON POSITIONS", 286, 0)
+    local divider = parent:CreateTexture(nil, "BACKGROUND")
+    divider:SetColorTexture(0.65, 0.45, 0.2, 0.45)
+    divider:SetPoint("TOPLEFT", 262, 0)
+    divider:SetSize(1, 304)
     local function Slider(suffix, key, offset, minimum, maximum, low, high)
         local name = prefix .. suffix
         local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
-        slider:SetPoint("TOP", 0, offset)
-        slider:SetWidth(250)
+        slider:SetPoint("TOPLEFT", 8, offset)
+        slider:SetWidth(226)
         slider:SetMinMaxValues(minimum, maximum)
         slider:SetValueStep(1)
         slider:SetObeyStepOnDrag(true)
@@ -177,26 +297,41 @@ local function CreateSettingsControls(parent, prefix)
                 return
             end
             AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
-            AggeMinimapDB[key] = math.max(minimum, math.min(maximum, math.floor(value + 0.5)))
+            value = math.max(minimum, math.min(maximum, math.floor(value + 0.5)))
+            if key == "width" or key == "height" then
+                SetMapDimension(key, value)
+            else
+                AggeMinimapDB[key] = value
+            end
             RefreshSettingsControls()
             ApplyLayout()
         end)
         return slider, _G[name .. "Text"]
     end
-    controls.size, controls.sizeText = Slider("Size", "size", -65, 160, 360, "160", "360")
-    controls.spacing, controls.spacingText = Slider("Spacing", "spacing", -130, 0, 40, "Tight", "Roomy")
+    controls.width, controls.widthText = Slider("Width", "width", -64, 160, 360, "160", "360")
+    SettingsText(parent, "Default: 200 px", 8, -94, "GameFontHighlightSmall")
+    controls.height, controls.heightText = Slider("Height", "height", -128, 160, 360, "160", "360")
+    SettingsText(parent, "Default: 200 px", 8, -158, "GameFontHighlightSmall")
+    controls.link = SettingsButton(parent, prefix .. "LinkAspect", "", 226, 8, -184)
+    controls.link:SetScript("OnClick", function()
+        local linked = IsAspectLinked()
+        local ratio = GetMapDimension("width") / GetMapDimension("height")
+        AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+        AggeMinimapDB.linkAspect = not linked
+        AggeMinimapDB.aspectRatio = not linked and ratio or nil
+        RefreshSettingsControls()
+    end)
+    SettingsText(parent, "Default: linked. Click to toggle.", 8, -218, "GameFontHighlightSmall")
+    controls.spacing, controls.spacingText = Slider("Spacing", "spacing", -266, -20, 40, "-20", "40")
+    SettingsText(parent, "Default: 0 px. Negative overlaps header.", 8, -296, "GameFontHighlightSmall")
     controls.positions = {}
-    local function PositionButtons(key, choices, default, title, labels, y, columns, buttonWidth)
-        local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        label:SetPoint("TOP", 0, y)
-        label:SetText(title)
+    local function PositionButtons(key, choices, default, title, labels, y)
+        SettingsText(parent, title, 286, y, "GameFontHighlightSmall")
         local group = {key = key, choices = choices, default = default, buttons = {}}
         for index, choice in ipairs(choices) do
-            local button = CreateFrame("Button", prefix .. key .. choice, parent, "UIPanelButtonTemplate")
-            button:SetSize(buttonWidth, 22)
-            button:SetPoint("TOP", (index - 1) % columns * (buttonWidth + 6) - (columns - 1) * (buttonWidth + 6) / 2,
-                y - 22 - math.floor((index - 1) / columns) * 26)
-            button.value, button.label = choice, labels[index]
+            local button = SettingsButton(parent, prefix .. key .. choice, labels[index], 130,
+                286 + (index - 1) % 2 * 136, y - 23 - math.floor((index - 1) / 2) * 34)
+            button.value = choice
             button:SetScript("OnClick", function()
                 AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
                 AggeMinimapDB[key] = choice
@@ -208,12 +343,26 @@ local function CreateSettingsControls(parent, prefix)
         table.insert(controls.positions, group)
     end
     PositionButtons("sunCorner", sunCorners, "TOPLEFT", "Sun / moon corner",
-        {"Top left", "Top right", "Bottom left", "Bottom right"}, -175, 2, 140)
+        {"Top left", "Top right", "Bottom left", "Bottom right"}, -31)
     PositionButtons("zoomSide", zoomSides, "LEFT", "Zoom button edge",
-        {"Left", "Right", "Top", "Bottom"}, -260, 4, 68)
-    local note = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    note:SetPoint("BOTTOM", 0, 18)
-    note:SetText("Changes apply after combat if you are fighting.")
+        {"Left", "Right", "Top", "Bottom"}, -145)
+    local footer = parent:CreateTexture(nil, "BACKGROUND")
+    footer:SetColorTexture(0.65, 0.45, 0.2, 0.45)
+    footer:SetPoint("TOPLEFT", 0, -331)
+    footer:SetSize(552, 1)
+    SettingsText(parent, "Saved automatically for your account.", 0, -349, "GameFontHighlightSmall")
+    SettingsText(parent, "Layout changes apply after combat.", 0, -367, "GameFontHighlightSmall")
+    local reset = SettingsButton(parent, prefix .. "ResetDefaults", "Reset defaults", 140, 286, -347)
+    reset:SetScript("OnClick", function()
+        AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+        AggeMinimapDB.size = nil
+        AggeMinimapDB.width, AggeMinimapDB.height = 200, 200
+        AggeMinimapDB.spacing = 0
+        AggeMinimapDB.linkAspect, AggeMinimapDB.aspectRatio = true, 1
+        AggeMinimapDB.sunCorner, AggeMinimapDB.zoomSide = "TOPLEFT", "LEFT"
+        RefreshSettingsControls()
+        ApplyLayout()
+    end)
     table.insert(settingsControls, controls)
     RefreshSettingsControls()
     return controls
@@ -221,13 +370,42 @@ end
 
 local function OpenSettings()
     if not settingsWindow then
-        local panel = CreateFrame("Frame", "AggeMinimapSettings", UIParent, "BasicFrameTemplateWithInset")
-        panel:SetSize(340, 350)
+        local panel = CreateFrame("Frame", "AggeMinimapSettings", UIParent, "PortraitFrameTemplate")
+        if panel.PortraitContainer then panel.PortraitContainer:Hide() end
+        if panel.NineSlice and NineSliceUtil then
+            NineSliceUtil.ApplyLayoutByName(panel.NineSlice, "ButtonFrameTemplateNoPortrait")
+        end
+        if panel.TitleContainer then
+            panel.TitleContainer:ClearAllPoints()
+            panel.TitleContainer:SetPoint("TOPLEFT", 18, -1)
+            panel.TitleContainer:SetPoint("TOPRIGHT", -24, -1)
+        end
+        local title = panel.TitleContainer and panel.TitleContainer.TitleText or panel.TitleText
+        title:SetText("AggeMinimap")
+        if panel.Bg then
+            panel.Bg:SetTexture("Interface\\FrameGeneral\\UI-Background-Rock")
+            panel.Bg:SetVertexColor(0.65, 0.65, 0.65)
+        end
+        panel:SetSize(600, 470)
         panel:SetPoint("CENTER")
         panel:SetFrameStrata("DIALOG")
         panel:SetClampedToScreen(true)
-        panel.TitleText:SetText("AggeMinimap")
-        CreateSettingsControls(panel, "AggeMinimap")
+        panel:SetMovable(true)
+        local titleBar = CreateFrame("Frame", nil, panel)
+        titleBar:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -2)
+        titleBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -28, -2)
+        titleBar:SetHeight(24)
+        titleBar:EnableMouse(true)
+        titleBar:RegisterForDrag("LeftButton")
+        titleBar:SetScript("OnDragStart", function() panel:StartMoving() end)
+        titleBar:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
+        panel:SetScript("OnHide", function() panel:StopMovingOrSizing() end)
+        local content = CreateFrame("Frame", nil, panel)
+        content:SetPoint("TOPLEFT", 24, -55)
+        content:SetSize(552, 390)
+        CreateSettingsControls(content, "AggeMinimap")
+        local done = SettingsButton(panel, nil, "Done", 100, 476, -402)
+        done:SetScript("OnClick", function() panel:Hide() end)
         panel:SetScript("OnShow", RefreshSettingsControls)
         table.insert(UISpecialFrames, "AggeMinimapSettings")
         settingsWindow = panel
@@ -249,7 +427,7 @@ local function RegisterSettings()
     panel:SetScript("OnShow", function(self)
         if not self.controls then
             local content = CreateFrame("Frame", nil, self)
-            content:SetSize(340, 350)
+            content:SetSize(552, 390)
             content:SetPoint("TOPLEFT", 16, -40)
             self.controls = CreateSettingsControls(content, "AggeMinimapOptions")
         end
@@ -277,8 +455,7 @@ end
 
 local function CreateBorder(map)
     local frame = CreateFrame("Frame", nil, map)
-    frame:SetPoint("TOPLEFT", map, "TOPLEFT", -1, 1)
-    frame:SetPoint("BOTTOMRIGHT", map, "BOTTOMRIGHT", 1, -1)
+    frame:SetPoint("CENTER", map, "CENTER", 0, 0)
     frame:EnableMouse(false)
 
     local function Edge(first, second, horizontal)

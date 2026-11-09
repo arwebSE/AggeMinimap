@@ -2,15 +2,15 @@
 
 **[Download on CurseForge](https://www.curseforge.com/wow/addons/aggeminimap)** · [GitHub release](https://github.com/arwebSE/AggeMinimap/releases/latest)
 
-A clean square minimap for **WoW Forever**.
+A clean square or rectangular minimap for **WoW Forever**.
 
 ![AggeMinimap](assets/screenshots/square-minimap-in-game.png)
 
-- Adjustable map size and spacing.
+- Separate width and height sliders, linked by default, plus spacing from −20 to 40 px.
 - Compact header above or below the map.
 - Move and scale with Blizzard Edit Mode.
 
-Type **`/amm`** or open **Options → AddOns → AggeMinimap** for settings.
+Right-click the minimap, type **`/amm`**, or open **Options → AddOns → AggeMinimap** for settings. Defaults are **200 × 200** with **0 px spacing**; use **Reset defaults** to restore them.
 
 For **Forever 1.60.1**. Use one minimap skin at a time.
 

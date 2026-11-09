@@ -8,13 +8,16 @@ The tests simulate WoW frames. Before promoting the beta to a stable Release, ve
 - `/amm` opens once, reopens without duplicates, and Escape closes it.
 - Right-clicking the minimap opens the same settings window; left-click and wheel zoom still work.
 - All four sun/moon corners and zoom edges work, persist after reload, and stay synchronized between settings views.
-- Both sliders update the layout; values persist after `/reload` and relogging.
-- Size extremes and Edit Mode scales keep the map square and controls on one row.
+- All three sliders update the layout; dimensions, spacing, and aspect-link state persist after `/reload` and relogging.
+- New profiles start at 200 × 200 with linked dimensions and 0 spacing; upgrades preserve the old saved square size.
+- Unlinked sliders resize independently; re-linking preserves current proportions, including at either dimension's bounds.
+- Size extremes and Edit Mode scales preserve dimensions and keep header controls on one row.
+- Negative spacing overlaps the header without shrinking Edit Mode bounds inside the map, with the header above and below.
 - Header above and below have no excessive gap, wrapping, or overlapping controls.
 - Long zone names stay within their allocated area.
 - Tracking menu, zone button, clock, calendar, addon compartment, mail, queues, and addon minimap buttons work.
 - Wheel and button zoom, map clicks, rotation on/off, zoning, and dungeon maps work.
-- Zoom buttons and their hover area stay on the left edge, and the sun/moon stays in the top-left corner, across map sizes, Edit Mode scales, and header positions.
+- Zoom buttons and their hover area stay on the selected edge, and the sun/moon stays in the selected corner, across rectangular sizes, Edit Mode scales, and header positions.
 - Layout updates during combat wait until combat ends without blocked actions.
 - Disable and reload restores the default UI.
 
