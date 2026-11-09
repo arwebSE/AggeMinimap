@@ -1,6 +1,12 @@
 # AggeMinimap
 
-A clean, square minimap for **World of Warcraft: Forever (Camelot)**.
+A square minimap for **World of Warcraft: Forever**, with a compact header, adjustable size, and Blizzard Edit Mode support.
+
+**[Install from CurseForge](https://www.curseforge.com/wow/addons/aggeminimap)** · [Download ZIP](https://github.com/arwebSE/AggeMinimap/releases) · [Report a bug](https://github.com/arwebSE/AggeMinimap/issues)
+
+Keep your minimap clean with just two settings: **Map size** and **Spacing**. Your tracking menu, zone name, clock, calendar, and addon compartment stay together in one row.
+
+![Square minimap in WoW Forever with a compact single-row header](assets/screenshots/square-minimap-in-game.png)
 
 ## Features
 
@@ -17,7 +23,9 @@ The map is square; the full Edit Mode selection also includes the header row. Lo
 
 ## Install
 
-1. Download **AggeMinimap-*.zip** from [Releases](https://github.com/arwebSE/AggeMinimap/releases). GitHub's automatic **Source code** archives are for development.
+Install through the [CurseForge app or project page](https://www.curseforge.com/wow/addons/aggeminimap), selecting **WoW Forever**. For a manual installation:
+
+1. Download the addon ZIP from CurseForge or [GitHub Releases](https://github.com/arwebSE/AggeMinimap/releases). GitHub's automatic **Source code** archives are for development.
 2. Extract the ZIP into your **Forever client's** `Interface/AddOns` folder.
 3. Restart WoW after first installation and enable **AggeMinimap** in the AddOns list.
 
@@ -33,11 +41,17 @@ Interface/AddOns/AggeMinimap/Icon.tga
 
 Disable other minimap skins, including DejaMinimap, to avoid competing layout changes. Updating an existing installation normally requires `/reload`. If upgrading from the early `AggeMiniMap` spelling, replace the old folder and restart WoW once. Disable the addon and reload to restore Blizzard's layout.
 
-## Compatibility and beta status
+## Settings
 
-Targets **Forever interface 16001** with default and Camelot TOCs. Other WoW clients are not supported. Future client changes may require updates.
+Type **`/amm`** or open **Options → AddOns → AggeMinimap**. Use Blizzard **Edit Mode** to move the map, change its scale, and put the header above or below it.
 
-**The latest layout is a beta and has not completed in-game visual verification.** Automated checks run the Lua in a simulated frame environment; they do not replace testing in WoW. Earlier versions were tried in-game and their layout issues informed this update.
+![AggeMinimap settings: square map size and spacing sliders](assets/screenshots/map-size-and-spacing-settings.png)
+
+## Compatibility
+
+Built for **WoW Forever 1.60.1 (Camelot), interface 16001**, with default and Camelot TOCs. Retail and other Classic clients are not supported. Future client changes may require updates.
+
+Automated tests cover layout, settings, loading, and combat deferral in a simulated frame environment. They do not replace in-game testing of every client patch or addon combination.
 
 Report issues at [GitHub Issues](https://github.com/arwebSE/AggeMinimap/issues), including your client build, addon version, other minimap addons, header placement, and a screenshot if relevant.
 
@@ -54,6 +68,10 @@ npm test
 Tests check Lua 5.1 syntax, manifests, mask, load order, rotation updates, combat deferral, square dimensions, scaled single-row layouts, slider bounds, and window reuse. The package script verifies both manifests agree and builds only the addon, license, README, and changelog. Local backups, development dependencies, and submission assets are excluded.
 
 See [release testing](docs/TESTING.md) for development checks.
+
+## More from ARWeb
+
+[AggeHealBot](https://www.curseforge.com/wow/addons/aggehealbot) adds click-cast healing to Blizzard party and raid frames in WoW Forever.
 
 ## License
 
