@@ -29,15 +29,26 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+      - name: Detect duplicate branch build for a release tag
+        id: release-tag
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        run: |
+          if [ -n "$(git tag --points-at HEAD)" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release tag found at HEAD; the tag workflow verifies the package."
+          fi
       - name: Build using CurseForge-compatible package metadata
+        if: steps.release-tag.outputs.skip != 'true'
         uses: BigWigsMods/packager@v2.7.0
         with:
           args: -d -g 1.60.1
       - name: Verify installable layout and excluded development files
+        if: steps.release-tag.outputs.skip != 'true'
         run: python3 scripts/check-package.py
       - name: Test release-tag validation
         run: python3 tests/check-release.py
       - uses: actions/upload-artifact@v7.0.2
+        if: steps.release-tag.outputs.skip != 'true'
         with:
           name: AggeMinimap-CurseForge
           path: .release/*.zip
