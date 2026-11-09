@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.5
+
+- Enabled publishing to CurseForge from verified GitHub version tags.
+- Release uploads now wait for addon tests, package-layout checks, and matching manifest versions.
+- No in-game behavior changes.
+
 ## 1.2.4
 
 - Changed the in-game AddOns category from Maps to Map.
