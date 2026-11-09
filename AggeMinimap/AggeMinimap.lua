@@ -4,6 +4,7 @@ local events = CreateFrame("Frame")
 local border
 local hookedCluster
 local hookedHeader
+local hookedMap
 local headerUnderneath = false
 local settingsWindow
 local announced = false
@@ -21,6 +22,18 @@ end
 
 local function GetSpacing()
     return GetNumberSetting("spacing", 2, 0, 40)
+end
+
+local sunCorners = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"}
+local zoomSides = {"LEFT", "RIGHT", "TOP", "BOTTOM"}
+local function GetPositionSetting(key, choices, default)
+    local value = type(AggeMinimapDB) == "table" and AggeMinimapDB[key]
+    for _, choice in ipairs(choices) do
+        if value == choice then
+            return value
+        end
+    end
+    return default
 end
 
 local function ApplyLayout()
@@ -59,6 +72,35 @@ local function ApplyLayout()
     container:ClearAllPoints()
     container:SetPoint("TOP", cluster, "TOP", 0,
         -(spacing + (headerUnderneath and 0 or rowHeight + spacing)) / scale)
+
+    -- Keep the native zoom buttons and their hover area on the selected edge.
+    local zoomSide = GetPositionSetting("zoomSide", zoomSides, "LEFT")
+    local vertical = zoomSide == "LEFT" or zoomSide == "RIGHT"
+    local inset = (zoomSide == "RIGHT" or zoomSide == "TOP") and -12 or 12
+    local zoomX, zoomY = vertical and inset or 0, vertical and 0 or inset
+    if map.ZoomIn then
+        map.ZoomIn:ClearAllPoints()
+        map.ZoomIn:SetPoint("CENTER", map, zoomSide, zoomX + (vertical and 0 or -10), zoomY + (vertical and 10 or 0))
+    end
+    if map.ZoomOut then
+        map.ZoomOut:ClearAllPoints()
+        map.ZoomOut:SetPoint("CENTER", map, zoomSide, zoomX + (vertical and 0 or 10), zoomY + (vertical and -10 or 0))
+    end
+    if map.ZoomHitArea then
+        map.ZoomHitArea:ClearAllPoints()
+        map.ZoomHitArea:SetSize(vertical and 40 or 48, vertical and 48 or 40)
+        map.ZoomHitArea:SetPoint("CENTER", map, zoomSide, zoomX, zoomY)
+    end
+    if cluster.DielFrame then
+        -- This frame belongs to the cluster, so match the map container's
+        -- scale explicitly, including Edit Mode scales below one.
+        cluster.DielFrame:SetScale(scale)
+        cluster.DielFrame:ClearAllPoints()
+        local corner = GetPositionSetting("sunCorner", sunCorners, "TOPLEFT")
+        cluster.DielFrame:SetPoint(corner, map, corner,
+            corner:find("LEFT") and 4 or -4, corner:find("TOP") and -4 or 4)
+    end
+
     local rowY = headerUnderneath and (height * scale + 2 * spacing) or spacing
     local rowWidth = width * scale / rowScale
     local gap = 3
@@ -108,6 +150,12 @@ local function RefreshSettingsControls()
         controls.size:SetValue(GetMapSize())
         controls.spacingText:SetText("Spacing: " .. GetSpacing() .. " px")
         controls.sizeText:SetText("Map size: " .. GetMapSize() .. " × " .. GetMapSize())
+        for _, group in ipairs(controls.positions) do
+            local selected = GetPositionSetting(group.key, group.choices, group.default)
+            for _, button in ipairs(group.buttons) do
+                button:SetText((button.value == selected and "|cff54cdb1" or "|cffffffff") .. button.label .. "|r")
+            end
+        end
     end
     refreshingControls = false
 end
@@ -137,6 +185,32 @@ local function CreateSettingsControls(parent, prefix)
     end
     controls.size, controls.sizeText = Slider("Size", "size", -65, 160, 360, "160", "360")
     controls.spacing, controls.spacingText = Slider("Spacing", "spacing", -130, 0, 40, "Tight", "Roomy")
+    controls.positions = {}
+    local function PositionButtons(key, choices, default, title, labels, y, columns, buttonWidth)
+        local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        label:SetPoint("TOP", 0, y)
+        label:SetText(title)
+        local group = {key = key, choices = choices, default = default, buttons = {}}
+        for index, choice in ipairs(choices) do
+            local button = CreateFrame("Button", prefix .. key .. choice, parent, "UIPanelButtonTemplate")
+            button:SetSize(buttonWidth, 22)
+            button:SetPoint("TOP", (index - 1) % columns * (buttonWidth + 6) - (columns - 1) * (buttonWidth + 6) / 2,
+                y - 22 - math.floor((index - 1) / columns) * 26)
+            button.value, button.label = choice, labels[index]
+            button:SetScript("OnClick", function()
+                AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+                AggeMinimapDB[key] = choice
+                RefreshSettingsControls()
+                ApplyLayout()
+            end)
+            table.insert(group.buttons, button)
+        end
+        table.insert(controls.positions, group)
+    end
+    PositionButtons("sunCorner", sunCorners, "TOPLEFT", "Sun / moon corner",
+        {"Top left", "Top right", "Bottom left", "Bottom right"}, -175, 2, 140)
+    PositionButtons("zoomSide", zoomSides, "LEFT", "Zoom button edge",
+        {"Left", "Right", "Top", "Bottom"}, -260, 4, 68)
     local note = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     note:SetPoint("BOTTOM", 0, 18)
     note:SetText("Changes apply after combat if you are fighting.")
@@ -148,7 +222,7 @@ end
 local function OpenSettings()
     if not settingsWindow then
         local panel = CreateFrame("Frame", "AggeMinimapSettings", UIParent, "BasicFrameTemplateWithInset")
-        panel:SetSize(310, 220)
+        panel:SetSize(340, 350)
         panel:SetPoint("CENTER")
         panel:SetFrameStrata("DIALOG")
         panel:SetClampedToScreen(true)
@@ -175,7 +249,7 @@ local function RegisterSettings()
     panel:SetScript("OnShow", function(self)
         if not self.controls then
             local content = CreateFrame("Frame", nil, self)
-            content:SetSize(310, 220)
+            content:SetSize(340, 350)
             content:SetPoint("TOPLEFT", 16, -40)
             self.controls = CreateSettingsControls(content, "AggeMinimapOptions")
         end
@@ -239,6 +313,14 @@ local function ApplyStyle()
 
     map:SetMaskTexture("Interface\\AddOns\\AggeMinimap\\Square.tga")
     map:EnableMouseWheel(true) -- Forever already implements mouse-wheel zoom.
+    if map ~= hookedMap then
+        map:HookScript("OnMouseUp", function(_, button)
+            if button == "RightButton" then
+                OpenSettings()
+            end
+        end)
+        hookedMap = map
+    end
 
     -- Only decorative regions: never hide MinimapBackdrop, which owns buttons.
     HideArt(MinimapCompassTexture)

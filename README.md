@@ -18,12 +18,14 @@ AggeMinimap gives **WoW Forever** a square minimap with a thin border and a comp
 ## Set it up your way
 
 1. Install **AggeMinimap** for **WoW Forever** from CurseForge and restart the game after first installation.
-2. Type **`/amm`**, or open **Options → AddOns → AggeMinimap**.
+2. Right-click the minimap, type **`/amm`**, or open **Options → AddOns → AggeMinimap**.
 3. Adjust **Map size** and **Spacing**. Open Blizzard **Edit Mode** to position the map and place its header.
 
 ![Map size and spacing: the two AggeMinimap settings](assets/screenshots/map-size-and-spacing-settings.png)
 
 Map size ranges from **160 to 360 UI pixels**; spacing ranges from **0 to 40**. Settings are saved account-wide. Changes made during combat apply when combat ends.
+
+Choose any corner for the sun/moon indicator and any edge for the zoom buttons. The defaults are the top-left corner and left edge.
 
 ## Compatibility and installation
 

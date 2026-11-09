@@ -96,6 +96,14 @@ local function Region()
         RegisterEvent = function(self, event) self.events[event] = true end,
         UnregisterEvent = function(self, event) self.events[event] = nil end,
         SetScript = function(self, script, fn) self[script] = fn end,
+        HookScript = function(self, script, fn)
+            local original = self[script]
+            self.scriptHooks = (self.scriptHooks or 0) + 1
+            self[script] = function(...)
+                if original then original(...) end
+                fn(...)
+            end
+        end,
         CreateTexture = function(self)
             local t = Region()
             self.textures = (self.textures or 0) + 1
@@ -126,6 +134,9 @@ end
 local masks = 0
 local function MakeMinimap()
     Minimap = Region()
+    Minimap.ZoomIn = Region()
+    Minimap.ZoomOut = Region()
+    Minimap.ZoomHitArea = Region()
     function Minimap:SetMaskTexture(value)
         assert(not combat, 'mask changed in combat')
         self.mask = value
@@ -133,7 +144,7 @@ local function MakeMinimap()
     end
     function Minimap:EnableMouseWheel(value) self.wheel = value end
     function Minimap:GetFrameLevel() return 4 end
-    Minimap.OnMouseUp = function() end
+    Minimap.OnMouseUp = function(self) self.nativeClicks = (self.nativeClicks or 0) + 1 end
     Minimap.OnMouseWheel = function() end
     MinimapBackdrop = Region()
     MinimapCompassTexture = Region()
@@ -145,6 +156,7 @@ local function MakeMinimap()
     MinimapCluster.ZoneTextButton.AddTexture = Region()
     MinimapCluster.Tracking = Region()
     MinimapCluster.IndicatorFrame = Region()
+    MinimapCluster.DielFrame = Region()
     GameTimeFrame = Region()
     AddonCompartmentFrame = Region()
     TimeManagerClockButton = Region()
@@ -154,6 +166,9 @@ local function MakeMinimap()
         self.ZoneTextButton:SetPoint(value and 'BOTTOM' or 'TOP')
     end
     function MinimapCluster:SetEditModeScale(value)
+        self.DielFrame:SetScale(math.max(1, value))
+        self.DielFrame:ClearAllPoints()
+        self.DielFrame:SetPoint('CENTER', self, 'CENTER', 63, 72)
         self.MinimapContainer.scale = value
     end
     function MinimapCluster:Layout()
@@ -199,6 +214,7 @@ Fire('PLAYER_ENTERING_WORLD')
 Fire('PLAYER_ENTERING_WORLD')
 assert(#frames == 2 and hooks == 4, 'must not duplicate frames or hooks')
 assert(Minimap.OnMouseUp == click and Minimap.OnMouseWheel == wheel)
+assert(Minimap.scriptHooks == 1, 'right-click hook must only be installed once')
 combat = true
 local before = masks
 Fire('PLAYER_ENTERING_WORLD')
@@ -237,7 +253,10 @@ for _, invalid in ipairs({false, 'bad', 100, -10}) do
     assert(MinimapCluster.width >= 198 and MinimapCluster.width <= 278)
 end
 AggeMinimapDB.spacing = 2
-SlashCmdList.AGGEMINIMAP()
+Minimap:OnMouseUp('LeftButton')
+assert(not AggeMinimapSettings, 'left-click must not open options')
+Minimap:OnMouseUp('RightButton')
+assert(Minimap.nativeClicks == 2, 'native map click handler must be preserved')
 assert(AggeMinimapSettings.shown and #UISpecialFrames == 1)
 assert(AggeMinimapSpacing.low == 0 and AggeMinimapSpacing.high == 40)
 AggeMinimapSpacing:SetValue(12)
@@ -253,6 +272,23 @@ combat = false
 Fire('PLAYER_REGEN_ENABLED')
 assert(MinimapCluster.width == 208 and AggeMinimapDB.spacing == 5)
 local function CheckSingleRow()
+    local function CheckAnchor(frame, anchor, relativeAnchor, x, y)
+        assert(#frame.points == 1, 'edge controls must have one anchor')
+        local point = frame.points[1]
+        assert(point[1] == anchor and point[2] == Minimap and point[3] == relativeAnchor)
+        assert(point[4] == x and point[5] == y, 'edge controls must stay aligned with the square')
+    end
+    local side = AggeMinimapDB.zoomSide or 'LEFT'
+    local vertical = side == 'LEFT' or side == 'RIGHT'
+    local inset = (side == 'RIGHT' or side == 'TOP') and -12 or 12
+    local x, y = vertical and inset or 0, vertical and 0 or inset
+    CheckAnchor(Minimap.ZoomIn, 'CENTER', side, x + (vertical and 0 or -10), y + (vertical and 10 or 0))
+    CheckAnchor(Minimap.ZoomOut, 'CENTER', side, x + (vertical and 0 or 10), y + (vertical and -10 or 0))
+    CheckAnchor(Minimap.ZoomHitArea, 'CENTER', side, x, y)
+    local corner = AggeMinimapDB.sunCorner or 'TOPLEFT'
+    CheckAnchor(MinimapCluster.DielFrame, corner, corner, corner:find('LEFT') and 4 or -4, corner:find('TOP') and -4 or 4)
+    assert(Minimap.ZoomHitArea.width == (vertical and 40 or 48) and Minimap.ZoomHitArea.height == (vertical and 48 or 40))
+    assert(MinimapCluster.DielFrame.scale == MinimapCluster.MinimapContainer.scale)
     local previousRight
     local centerY
     for _, frame in ipairs({MinimapCluster.Tracking, MinimapCluster.ZoneTextButton,
@@ -276,7 +312,13 @@ for _, size in ipairs({160, 198, 260, 360}) do
         MinimapCluster:SetEditModeScale(scale)
         for _, underneath in ipairs({false, true}) do
             MinimapCluster:SetHeaderUnderneath(underneath)
-            CheckSingleRow()
+            for _, corner in ipairs({'TOPLEFT', 'TOPRIGHT', 'BOTTOMLEFT', 'BOTTOMRIGHT'}) do
+                _G['AggeMinimapsunCorner' .. corner]:OnClick()
+                for _, side in ipairs({'LEFT', 'RIGHT', 'TOP', 'BOTTOM'}) do
+                    _G['AggeMinimapzoomSide' .. side]:OnClick()
+                    CheckSingleRow()
+                end
+            end
         end
     end
 end
@@ -288,6 +330,17 @@ InstallSettings()
 Fire('ADDON_LOADED', 'Blizzard_Settings_Shared')
 assert(categoryCount == 1 and not AggeMinimapOptions.shown)
 AggeMinimapOptions:Show()
+assert(AggeMinimapOptionssunCornerBOTTOMRIGHT.text:find('|cff54cdb1', 1, true))
+AggeMinimapOptionssunCornerTOPRIGHT:OnClick()
+assert(AggeMinimapDB.sunCorner == 'TOPRIGHT')
+assert(AggeMinimapsunCornerTOPRIGHT.text:find('|cff54cdb1', 1, true))
+combat = true
+AggeMinimapOptionszoomSideRIGHT:OnClick()
+assert(Minimap.ZoomIn.points[1][3] == 'BOTTOM', 'position changes must wait for combat to end')
+combat = false
+Fire('PLAYER_REGEN_ENABLED')
+assert(Minimap.ZoomIn.points[1][3] == 'RIGHT')
+CheckSingleRow()
 assert(AggeMinimapOptionsSize.value == 240)
 assert(AggeMinimapOptionsSpacing.value == AggeMinimapDB.spacing)
 AggeMinimapOptionsSize:SetValue(250)

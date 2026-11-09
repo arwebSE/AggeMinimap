@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.6
+
+- Right-click the minimap to open AggeMinimap options.
+- Added saved options for the sun/moon corner and zoom button edge in both settings views.
+- Moved the zoom buttons and their hover area to the minimap's left edge.
+- Anchored the sun/moon indicator to the top-left corner across map sizes and Edit Mode scales.
+
 ## 1.2.5
 
 - Enabled publishing to CurseForge from verified GitHub version tags.
