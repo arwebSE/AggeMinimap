@@ -40,3 +40,4 @@ jobs:
           name: AggeMinimap-CurseForge
           path: .release/*.zip
           if-no-files-found: error
+          include-hidden-files: true

@@ -9,7 +9,7 @@ parse(source, { luaVersion: '5.1' });
 for (const name of ['AggeMinimap.toc', 'AggeMinimap_Camelot.toc']) {
   const toc = fs.readFileSync(path.join(root, 'AggeMinimap', name), 'utf8');
   assert.match(toc, /^## Interface: 16001$/m);
-  assert.match(toc, /^## Category: Maps$/m);
+  assert.match(toc, /^## Category: Map$/m);
   assert.ok(toc.includes('## IconTexture: Interface\\AddOns\\AggeMinimap\\Icon.tga'));
   const files = toc.split(/\r?\n/).filter(line => line && !line.startsWith('#'));
   assert.deepEqual(files, ['AggeMinimap.lua']);

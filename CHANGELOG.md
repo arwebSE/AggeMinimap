@@ -2,6 +2,7 @@
 
 ## 1.2.4
 
+- Changed the in-game AddOns category from Maps to Map.
 - Added automatic-packager configuration with the correct addon folder layout.
 - Added the CurseForge project ID to both manifests.
 - Added a separate packager build check to CI.
