@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+- Consolidated compatibility tests to reduce repeated setup and overlapping scenarios while preserving the key behavior checks.
+- No in-game behavior changes from 1.3.1.
+
 ## 1.3.1
 
 - Added default-on "Minimap icon compatibility fix" in both settings views. Detects small draggable addon buttons using centered circular positioning, including AutoStartAttack, and keeps them on square/rectangular edges while dragging or resizing. Hover the checkbox or its label for a short explanation.
