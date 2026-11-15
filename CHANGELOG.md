@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
 - Fixed settings-window layering so opening or clicking AggeMinimap brings the full dialog in front of other settings windows.
 
