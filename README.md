@@ -17,7 +17,7 @@ A clean square or rectangular minimap for **WoW Forever**.
 
 - Separate width and height sliders, linked by default, plus spacing from −20 to 40 px.
 - Compact header above or below the map.
-- Default-on addon-button alignment for draggable buttons that use circular minimap positioning; toggle it in settings if an addon needs its own layout.
+- Default-on **Minimap icon compatibility fix** for draggable buttons that use circular positioning. Hover the setting for details; turn it off if an addon needs its own layout.
 - Move and scale with Blizzard Edit Mode.
 
 Right-click the minimap, type **`/amm`**, or open **Options → AddOns → AggeMinimap** for settings. Defaults are **200 × 200** with **0 px spacing**; use **Reset defaults** to restore them.

@@ -27,7 +27,7 @@ The tests simulate WoW frames. Before promoting the beta to a stable Release, ve
 - Header above and below have no excessive gap, wrapping, or overlapping controls.
 - Long zone names stay within their allocated area.
 - Tracking menu, zone button, clock, calendar, addon compartment, mail, queues, and addon minimap buttons work.
-- "Align addon buttons to edges" defaults on, stays synchronized between settings views, and resets to on. Test AutoStartAttack and another small draggable circular button across dragging, resizing, load order, late creation, and combat. Turning it off restores addon positions. Quest pins, protected frames, native zoom controls, and LibDBIcon-managed buttons stay untouched.
+- "Minimap icon compatibility fix" defaults on, stays synchronized between settings views, and resets to on. Hovering the checkbox or its label shows the explanation; leaving or closing the panel hides it. Test AutoStartAttack and another small draggable circular button across dragging, resizing, load order, late creation, and combat. Turning it off restores addon positions. Quest pins, protected frames, native zoom controls, and LibDBIcon-managed buttons stay untouched.
 - Wheel and button zoom, map clicks, rotation on/off, zoning, and dungeon maps work.
 - Zoom buttons and their hover area stay on the selected edge, and the sun/moon stays in the selected corner, across rectangular sizes, Edit Mode scales, and header positions.
 - Layout updates during combat wait until combat ends without blocked actions.
