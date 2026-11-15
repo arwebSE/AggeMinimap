@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fixed settings-window layering so opening or clicking AggeMinimap brings the full dialog in front of other settings windows.
+
 ## 1.2.9
 
 - Removed the black padding around the addon icon so its frame fills the icon area.

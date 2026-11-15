@@ -48,6 +48,8 @@ local function Region()
         SetText = function(self, value) self.text = value end,
         GetName = function(self) return self.name end,
         SetFrameStrata = function() end,
+        SetToplevel = function(self, value) self.topLevel = value end,
+        Raise = function(self) self.raises = (self.raises or 0) + 1 end,
         SetClampedToScreen = function() end,
         SetMovable = function(self, value) self.movable = value end,
         RegisterForDrag = function(self, button) self.dragButton = button end,
@@ -72,7 +74,7 @@ local function Region()
         end,
         Hide = function(self) self.shown = false end,
         CreateFontString = function() return Region() end,
-        EnableMouse = function() end,
+        EnableMouse = function(self, value) self.mouseEnabled = value end,
         SetColorTexture = function() end,
         SetFrameLevel = function(self, level) self.level = level end,
         RegisterEvent = function(self, event) self.events[event] = true end,
@@ -266,9 +268,14 @@ Minimap:OnMouseUp('RightButton')
 assert(Minimap.nativeClicks == 2, 'native map click handler must be preserved')
 assert(AggeMinimapSettings.shown and #UISpecialFrames == 1)
 assert(AggeMinimapSettings.movable)
+assert(AggeMinimapSettings.topLevel and AggeMinimapSettings.mouseEnabled,
+    'standalone settings must be a mouse-enabled top-level dialog')
+assert(AggeMinimapSettings.raises == 1, 'opening settings must raise the full window')
 for _, frame in ipairs(frames) do
     if frame.parent == AggeMinimapSettings and frame.OnDragStart then
         assert(frame.dragButton == 'LeftButton')
+        frame:OnMouseDown('LeftButton')
+        assert(AggeMinimapSettings.raises == 2, 'clicking the title bar must raise settings')
         frame:OnDragStart()
         assert(AggeMinimapSettings.moving)
         frame:OnDragStop()
@@ -283,6 +290,7 @@ assert(MinimapCluster.width == 222 and MinimapCluster.height == 257)
 assert(AggeMinimapSpacingText.text == 'Spacing: 12 px')
 SlashCmdList.AGGEMINIMAP()
 assert(#UISpecialFrames == 1, 'reopen must reuse the settings window')
+assert(AggeMinimapSettings.raises == 3, 'reopening visible settings must bring it to the front')
 combat = true
 AggeMinimapSpacing:SetValue(5)
 assert(MinimapCluster.width == 222)

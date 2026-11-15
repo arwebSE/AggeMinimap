@@ -389,6 +389,10 @@ local function OpenSettings()
         panel:SetSize(600, 470)
         panel:SetPoint("CENTER")
         panel:SetFrameStrata("DIALOG")
+        -- Raise the whole window together, including its background and child
+        -- controls, rather than interleaving with another dialog's children.
+        panel:SetToplevel(true)
+        panel:EnableMouse(true)
         panel:SetClampedToScreen(true)
         panel:SetMovable(true)
         local titleBar = CreateFrame("Frame", nil, panel)
@@ -396,6 +400,7 @@ local function OpenSettings()
         titleBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -28, -2)
         titleBar:SetHeight(24)
         titleBar:EnableMouse(true)
+        titleBar:SetScript("OnMouseDown", function() panel:Raise() end)
         titleBar:RegisterForDrag("LeftButton")
         titleBar:SetScript("OnDragStart", function() panel:StartMoving() end)
         titleBar:SetScript("OnDragStop", function() panel:StopMovingOrSizing() end)
@@ -412,6 +417,8 @@ local function OpenSettings()
     end
     RefreshSettingsControls()
     settingsWindow:Show()
+    -- Show does not fire OnShow when an already-visible window is reopened.
+    settingsWindow:Raise()
 end
 
 local function RegisterSettings()
