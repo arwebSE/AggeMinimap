@@ -37,6 +37,8 @@ local function Region()
         SetWidth = function(self, value) self.width = value end,
         SetSize = function(self, w, h) self.width, self.height = w, h end,
         GetSize = function(self) return self.width, self.height end,
+        GetWidth = function(self) return self.width end,
+        GetHeight = function(self) return self.height end,
         GetScale = function(self) return self.scale end,
         SetScale = function(self, value) self.scale = value end,
         SetWordWrap = function(self, value) self.wordWrap = value end,
@@ -464,5 +466,60 @@ Fire('PLAYER_ENTERING_WORLD')
 assert(categoryCount == 1, 'category must only register once')
 assert(#messages == 1 and messages[1]:find('loaded. /amm for settings.', 1, true))
 assert(messages[1] == '|cff80e5b0AggeMinimap:|r vtest-version loaded. /amm for settings.', 'message must match HealBot format and use addon metadata version')
+
+-- Match AutoStartAttack's real circular SetPoint calls, without replacing any
+-- of its click or drag handlers or changing its saved angle/radius settings.
+AggeMinimapResetDefaults:OnClick()
+ASA_MinimapButton = Region()
+local asaClick, asaDrag = function() end, function() end
+ASA_MinimapButton.OnClick, ASA_MinimapButton.OnDragStart = asaClick, asaDrag
+local function CirclePosition(angle, padding)
+    local radius = Minimap:GetWidth() / 2 + padding
+    ASA_MinimapButton:ClearAllPoints()
+    ASA_MinimapButton:SetPoint('CENTER', Minimap, 'CENTER', math.cos(angle) * radius, math.sin(angle) * radius)
+end
+local function CheckAddonPoint(x, y)
+    local points = ASA_MinimapButton.points
+    assert(#points == 1 and points[1][1] == 'CENTER' and points[1][2] == Minimap)
+    assert(math.abs(points[1][4] - x) < 0.001 and math.abs(points[1][5] - y) < 0.001,
+        'custom minimap button must follow the rectangle perimeter')
+end
+CirclePosition(math.pi / 4, 10)
+Fire('ADDON_LOADED', 'AutoStartAttack')
+CheckAddonPoint(110, 110)
+assert(ASA_MinimapButton.OnClick == asaClick and ASA_MinimapButton.OnDragStart == asaDrag)
+local hooksWithAddon = hooks
+AggeMinimapLinkAspect:OnClick()
+AggeMinimapWidth:SetValue(360)
+AggeMinimapHeight:SetValue(160)
+CheckAddonPoint(90, 90)
+CirclePosition(0, 10)
+CheckAddonPoint(190, 0)
+CirclePosition(math.pi / 2, 10)
+CheckAddonPoint(0, 90)
+CirclePosition(-math.pi / 4, 10)
+CheckAddonPoint(90, -90)
+CirclePosition(math.pi * 3 / 4, 10)
+CheckAddonPoint(-90, 90)
+CirclePosition(math.pi / 4, 20)
+CheckAddonPoint(100, 100)
+for _ = 1, 3 do Fire('PLAYER_ENTERING_WORLD') end
+CheckAddonPoint(100, 100)
+assert(hooks == hooksWithAddon, 'compatibility hook must be installed once')
+combat = true
+CirclePosition(math.pi / 4, 20)
+assert(ASA_MinimapButton.points[1][4] > 100 and events.events.PLAYER_REGEN_ENABLED)
+combat = false
+Fire('PLAYER_REGEN_ENABLED')
+CheckAddonPoint(100, 100)
+ASA_MinimapButton:ClearAllPoints()
+ASA_MinimapButton:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0)
+AggeMinimapWidth:SetValue(300)
+assert(ASA_MinimapButton.points[1][1] == 'TOPLEFT', 'non-circular positioning must be left alone')
+-- A button already present at a normal layout refresh is picked up too.
+ASA_MinimapButton = Region()
+CirclePosition(math.pi / 4, 10)
+Fire('PLAYER_ENTERING_WORLD')
+CheckAddonPoint(90, 90)
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")

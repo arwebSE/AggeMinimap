@@ -27,6 +27,7 @@ The tests simulate WoW frames. Before promoting the beta to a stable Release, ve
 - Header above and below have no excessive gap, wrapping, or overlapping controls.
 - Long zone names stay within their allocated area.
 - Tracking menu, zone button, clock, calendar, addon compartment, mail, queues, and addon minimap buttons work.
+- AutoStartAttack's button follows the square/rectangle perimeter when dragged or resized, in either addon load order; its click, tooltip, and saved angle still work. Other custom circular buttons are not automatically managed.
 - Wheel and button zoom, map clicks, rotation on/off, zoning, and dungeon maps work.
 - Zoom buttons and their hover area stay on the selected edge, and the sun/moon stays in the selected corner, across rectangular sizes, Edit Mode scales, and header positions.
 - Layout updates during combat wait until combat ends without blocked actions.

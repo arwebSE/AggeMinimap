@@ -9,6 +9,47 @@ local headerUnderneath = false
 local settingsWindow
 local announced = false
 local renderedMap, renderedWidth, renderedHeight, renderedScale
+local addonButtonLayouts = setmetatable({}, {__mode = "k"})
+
+local function PlaceAddonButton(button, layout, map)
+    if not layout.x or not layout.y then return end
+    if InCombatLockdown() then
+        events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    local halfWidth = map:GetWidth() / 2 + layout.padding
+    local halfHeight = map:GetHeight() / 2 + layout.padding
+    if halfWidth <= 0 or halfHeight <= 0 then return end
+    local divisor = math.max(math.abs(layout.x) / halfWidth, math.abs(layout.y) / halfHeight)
+    if divisor <= 0 then return end
+    layout.applying = true
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", map, "CENTER", layout.x / divisor, layout.y / divisor)
+    layout.applying = false
+end
+
+local function HookAddonButtons(map)
+    -- AutoStartAttack uses its own circular math instead of GetMinimapShape.
+    -- Keep its saved angle, radius offset, click handlers, and drag behavior;
+    -- project only this known button's centered anchor onto the map's edges.
+    local button = ASA_MinimapButton
+    if not button or addonButtonLayouts[button] then return end
+    local layout = {}
+    addonButtonLayouts[button] = layout
+    local function Capture(self, point, relativeTo, relativePoint, x, y)
+        if layout.applying then return end
+        layout.x, layout.y = nil, nil
+        if point ~= "CENTER" or (relativeTo ~= map and relativeTo ~= "Minimap") or relativePoint ~= "CENTER"
+            or type(x) ~= "number" or type(y) ~= "number" or x ~= x or y ~= y then return end
+        local radius = math.sqrt(x * x + y * y)
+        if radius == 0 or radius == math.huge then return end
+        layout.x, layout.y = x, y
+        layout.padding = radius - map:GetWidth() / 2
+        PlaceAddonButton(self, layout, map)
+    end
+    hooksecurefunc(button, "SetPoint", Capture)
+    Capture(button, button:GetPoint(1))
+end
 local function GetNumberSetting(key, default, minimum, maximum)
     local value = type(AggeMinimapDB) == "table" and AggeMinimapDB[key]
     if type(value) ~= "number" or value ~= value then
@@ -80,6 +121,8 @@ local function ApplyLayout()
     end
 
     local spacing = GetSpacing()
+    -- Capture existing circular offsets before changing map dimensions.
+    HookAddonButtons(map)
     local scale = container:GetScale()
     local width = GetMapDimension("width")
     local height = GetMapDimension("height")
@@ -90,6 +133,9 @@ local function ApplyLayout()
     -- Fit it to the map, then size the Edit Mode frame explicitly.
     map:SetSize(width, height)
     container:SetSize(width, height)
+    for button, layout in pairs(addonButtonLayouts) do
+        PlaceAddonButton(button, layout, map)
+    end
     map:ClearAllPoints()
     map:SetPoint("CENTER", container, "CENTER", 0, 0)
     if border then
@@ -567,7 +613,7 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name ~= addonName and name ~= "Blizzard_Minimap" and name ~= "Blizzard_TimeManager"
-        and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" then
+        and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" and name ~= "AutoStartAttack" then
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then

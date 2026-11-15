@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added AutoStartAttack minimap-button compatibility: its button follows square and rectangular map edges when dragged or resized, while keeping its angle and radius offset.
+
 ## 1.3.0
 
 - Fixed settings-window layering so opening or clicking AggeMinimap brings the full dialog in front of other settings windows.
