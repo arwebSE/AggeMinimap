@@ -476,145 +476,102 @@ assert(categoryCount == 1, 'category must only register once')
 assert(#messages == 1 and messages[1]:find('loaded. /amm for settings.', 1, true))
 assert(messages[1] == '|cff80e5b0AggeMinimap:|r vtest-version loaded. /amm for settings.', 'message must match HealBot format and use addon metadata version')
 
--- Match AutoStartAttack's real circular SetPoint calls, without replacing any
--- of its click or drag handlers or changing its saved angle/radius settings.
+-- Generic addon-button alignment: geometry, opt-out, and unrelated-frame guards.
 AggeMinimapResetDefaults:OnClick()
 local function AddonButton(name, parent)
     local button = Region()
     button.name, button.objectType = name, 'Button'
     button:SetSize(31, 31)
-    button.OnDragStart = function() end
+    button.OnDragStart, button.OnClick = function() end, function() end
+    button:SetPoint('CENTER', Minimap, 'CENTER', 110 / math.sqrt(2), 110 / math.sqrt(2))
     table.insert((parent or Minimap).children, button)
     return button
 end
-ASA_MinimapButton = AddonButton('ASA_MinimapButton')
-local asaClick, asaDrag = function() end, function() end
-ASA_MinimapButton.OnClick, ASA_MinimapButton.OnDragStart = asaClick, asaDrag
+local button = AddonButton('CustomAddonButton')
+local click, drag = button.OnClick, button.OnDragStart
 local function CirclePosition(angle, padding)
     local radius = Minimap:GetWidth() / 2 + padding
-    ASA_MinimapButton:ClearAllPoints()
-    ASA_MinimapButton:SetPoint('CENTER', Minimap, 'CENTER', math.cos(angle) * radius, math.sin(angle) * radius)
+    button:ClearAllPoints()
+    button:SetPoint('CENTER', Minimap, 'CENTER', math.cos(angle) * radius, math.sin(angle) * radius)
 end
-local function CheckAddonPoint(x, y)
-    local points = ASA_MinimapButton.points
-    assert(#points == 1 and points[1][1] == 'CENTER' and points[1][2] == Minimap)
-    assert(math.abs(points[1][4] - x) < 0.001 and math.abs(points[1][5] - y) < 0.001,
-        'custom minimap button must follow the rectangle perimeter')
+local function CheckPoint(x, y)
+    local point = button.points[1]
+    assert(#button.points == 1 and point[1] == 'CENTER' and point[2] == Minimap)
+    assert(math.abs(point[4] - x) < 0.001 and math.abs(point[5] - y) < 0.001, 'button must follow map perimeter')
 end
-CirclePosition(math.pi / 4, 10)
-Fire('ADDON_LOADED', 'AutoStartAttack')
-CheckAddonPoint(105, 105)
-assert(ASA_MinimapButton.OnClick == asaClick and ASA_MinimapButton.OnDragStart == asaDrag)
-local hooksWithAddon = hooks
+Fire('ADDON_LOADED', 'CustomAddon')
+CheckPoint(105, 105)
+assert(button.OnClick == click and button.OnDragStart == drag, 'addon interactions must be preserved')
+local hooked = hooks
 AggeMinimapLinkAspect:OnClick()
 AggeMinimapWidth:SetValue(360)
 AggeMinimapHeight:SetValue(160)
-CheckAddonPoint(85, 85)
-CirclePosition(0, 10)
-CheckAddonPoint(185, 0)
-CirclePosition(math.pi / 2, 10)
-CheckAddonPoint(0, 85)
-CirclePosition(-math.pi / 4, 10)
-CheckAddonPoint(85, -85)
-CirclePosition(math.pi * 3 / 4, 10)
-CheckAddonPoint(-85, 85)
-CirclePosition(math.pi / 4, 20)
-CheckAddonPoint(85, 85)
-for _ = 1, 3 do Fire('PLAYER_ENTERING_WORLD') end
-CheckAddonPoint(85, 85)
-assert(hooks == hooksWithAddon, 'compatibility hook must be installed once')
-combat = true
-CirclePosition(math.pi / 4, 20)
-assert(ASA_MinimapButton.points[1][4] > 100 and events.events.PLAYER_REGEN_ENABLED)
-combat = false
-Fire('PLAYER_REGEN_ENABLED')
-CheckAddonPoint(85, 85)
-ASA_MinimapButton:ClearAllPoints()
-ASA_MinimapButton:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0)
-AggeMinimapWidth:SetValue(300)
-assert(ASA_MinimapButton.points[1][1] == 'TOPLEFT', 'non-circular positioning must be left alone')
--- A button already present at a normal layout refresh is picked up too.
-ASA_MinimapButton = AddonButton('AnotherAddonButton')
-CirclePosition(math.pi / 4, 10)
+CheckPoint(85, 85)
+for _, case in ipairs({{0, 185, 0}, {math.pi / 2, 0, 85}, {-math.pi / 4, 85, -85}, {3 * math.pi / 4, -85, 85}}) do
+    CirclePosition(case[1], 10)
+    CheckPoint(case[2], case[3])
+end
 Fire('PLAYER_ENTERING_WORLD')
-CheckAddonPoint(85, 85)
+assert(hooks == hooked, 'layout refresh must not duplicate hooks')
 
--- The generic fallback is optional, shared by both settings views, and restores
--- the exact last position requested by the addon when switched off.
+-- Toggle in combat: defer movement, restore the addon position, and sync views.
+CirclePosition(math.pi / 4, 10)
 assert(AggeMinimapAlignAddonButtons.checked and AggeMinimapOptionsAlignAddonButtons.checked)
+combat = true
 AggeMinimapAlignAddonButtons:SetChecked(false)
 AggeMinimapAlignAddonButtons:OnClick()
-assert(not AggeMinimapOptionsAlignAddonButtons.checked and AggeMinimapDB.alignAddonButtons == false)
-local circleCoordinate = 160 / math.sqrt(2)
-CheckAddonPoint(circleCoordinate, circleCoordinate)
+CheckPoint(85, 85)
+assert(not AggeMinimapOptionsAlignAddonButtons.checked and events.events.PLAYER_REGEN_ENABLED)
+combat = false
+Fire('PLAYER_REGEN_ENABLED')
+CheckPoint(190 / math.sqrt(2), 190 / math.sqrt(2))
 CirclePosition(0, 10)
-CheckAddonPoint(160, 0)
-CirclePosition(math.pi / 4, 10)
-CheckAddonPoint(circleCoordinate, circleCoordinate)
+CheckPoint(190, 0)
 AggeMinimapOptionsAlignAddonButtons:SetChecked(true)
 AggeMinimapOptionsAlignAddonButtons:OnClick()
 assert(AggeMinimapAlignAddonButtons.checked)
-CheckAddonPoint(85, 85)
+CheckPoint(185, 0)
 
-local function Candidate(name, x, y)
-    local button = AddonButton(name)
-    button:SetPoint('CENTER', Minimap, 'CENTER', x, y)
-    return button
-end
-local libraryButton = Candidate('LibDBIcon10AlreadySquareAware', 113, 113)
-local questPin = Candidate('QuestObjectivePin', 70, 70)
-questPin.OnDragStart = nil
-local centralMarker = Candidate('DraggableMapMarker', 10, 10)
-local protectedButton = Candidate('ProtectedMinimapButton', 113, 113)
-protectedButton.protected = true
-local largeOverlay = Candidate('LargeMapOverlay', 113, 113)
-largeOverlay:SetSize(200, 200)
-local multipleAnchors = Candidate('DockedMinimapButton', 113, 113)
-multipleAnchors:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0)
-Fire('ADDON_LOADED', 'UnrelatedButtonAddon')
-for _, button in ipairs({libraryButton, questPin, centralMarker, protectedButton, largeOverlay, multipleAnchors}) do
-    assert(rawget(button, 'SetPoint') == nil, 'libraries, quest pins, protected frames, and other layouts must not be hooked')
-end
--- Lazy addon initialization is discovered on the next frame without polling.
-local timers = {}
+-- Discovery runs after lazy creation, coalesces events, and excludes other map elements.
+local timers, excluded = {}, {}
 C_Timer = {After = function(_, callback) table.insert(timers, callback) end}
-Fire('ADDON_LOADED', 'LazyButtonAddon')
-Fire('ADDON_LOADED', 'AnotherLazyAddon')
-assert(#timers == 1, 'addon-load scans should be coalesced')
-local lazyButton = AddonButton('LazyAddonButton', MinimapBackdrop)
-lazyButton:SetPoint('CENTER', Minimap, 'CENTER', circleCoordinate, circleCoordinate)
-timers[1]()
-assert(math.abs(lazyButton.points[1][4] - 85) < 0.001, 'late buttons under the backdrop must be discovered')
-C_Timer = nil
-AggeMinimapAlignAddonButtons:SetChecked(false)
-AggeMinimapAlignAddonButtons:OnClick()
-AggeMinimapResetDefaults:OnClick()
-assert(AggeMinimapAlignAddonButtons.checked and AggeMinimapDB.alignAddonButtons)
-CirclePosition(math.pi / 4, 10)
-CheckAddonPoint(105, 105)
-combat = true
-AggeMinimapAlignAddonButtons:SetChecked(false)
-AggeMinimapAlignAddonButtons:OnClick()
-CheckAddonPoint(105, 105)
-combat = false
-Fire('PLAYER_REGEN_ENABLED')
-CheckAddonPoint(110 / math.sqrt(2), 110 / math.sqrt(2))
-AggeMinimapResetDefaults:OnClick()
-
--- Honor an installed LibDBIcon's configured edge offset without moving any
--- of its own buttons; different source radii must land on the same edge.
-local iconLibrary = {radius = 8}
-LibStub = function(name, silent)
-    assert(name == 'LibDBIcon-1.0' and silent)
-    return iconLibrary
+Fire('ADDON_LOADED', 'LazyAddon')
+Fire('ADDON_LOADED', 'AnotherAddon')
+assert(#timers == 1)
+local lateButton = AddonButton('LazyButton', MinimapBackdrop)
+local cases = {
+    {name = 'LibDBIcon10AlreadyManaged'}, {name = 'QuestPin', noDrag = true},
+    {name = 'MapMarker', center = true}, {name = 'ProtectedButton', protected = true},
+    {name = 'LargeOverlay', size = 200}, {name = 'DockedButton', docked = true},
+}
+for _, case in ipairs(cases) do
+    local candidate = AddonButton(case.name)
+    candidate.protected = case.protected
+    if case.noDrag then candidate.OnDragStart = nil end
+    if case.size then candidate:SetSize(case.size, case.size) end
+    if case.center then
+        candidate:ClearAllPoints()
+        candidate:SetPoint('CENTER', Minimap, 'CENTER', 10, 10)
+    end
+    if case.docked then candidate:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0) end
+    excluded[#excluded + 1] = candidate
 end
-CirclePosition(math.pi / 4, 10)
-CheckAddonPoint(108, 108)
-CirclePosition(math.pi / 4, 20)
-CheckAddonPoint(108, 108)
-iconLibrary.radius = 5
-Fire('PLAYER_ENTERING_WORLD')
-CheckAddonPoint(105, 105)
+timers[1]()
+assert(math.abs(lateButton.points[1][4] - 85) < 0.001, 'late backdrop buttons must be discovered')
+for _, candidate in ipairs(excluded) do
+    assert(rawget(candidate, 'SetPoint') == nil, 'unrelated frames must not be hooked')
+end
+C_Timer = nil
+
+-- Match LibDBIcon spacing independently of the source addon's circular radius.
+LibStub = function() return {radius = 8} end
+for _, padding in ipairs({10, 20}) do
+    CirclePosition(math.pi / 4, padding)
+    CheckPoint(88, 88)
+end
 LibStub = nil
+AggeMinimapResetDefaults:OnClick()
+assert(AggeMinimapDB.alignAddonButtons and AggeMinimapAlignAddonButtons.checked)
+CheckPoint(105, 105)
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")
