@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Added AutoStartAttack minimap-button compatibility: its button follows square and rectangular map edges when dragged or resized, while keeping its angle and radius offset.
+- Added default-on "Align addon buttons to edges" in both settings views. Detects small draggable addon buttons using centered circular positioning, including AutoStartAttack, and keeps them on square/rectangular edges while dragging or resizing.
+- Turning alignment off restores the last position requested by each addon. Quest pins, protected frames, native zoom controls, and LibDBIcon-managed buttons are excluded.
 
 ## 1.3.0
 

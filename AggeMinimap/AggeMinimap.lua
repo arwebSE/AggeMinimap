@@ -10,11 +10,27 @@ local settingsWindow
 local announced = false
 local renderedMap, renderedWidth, renderedHeight, renderedScale
 local addonButtonLayouts = setmetatable({}, {__mode = "k"})
+local addonButtonScanQueued = false
+
+local function AlignAddonButtons()
+    return type(AggeMinimapDB) ~= "table" or AggeMinimapDB.alignAddonButtons ~= false
+end
 
 local function PlaceAddonButton(button, layout, map)
     if not layout.x or not layout.y then return end
+    if button:IsProtected() then return end
     if InCombatLockdown() then
         events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    if not AlignAddonButtons() then
+        if layout.projected then
+            layout.applying = true
+            button:ClearAllPoints()
+            button:SetPoint("CENTER", map, "CENTER", layout.x, layout.y)
+            layout.applying = false
+            layout.projected = false
+        end
         return
     end
     local halfWidth = map:GetWidth() / 2 + layout.padding
@@ -26,19 +42,31 @@ local function PlaceAddonButton(button, layout, map)
     button:ClearAllPoints()
     button:SetPoint("CENTER", map, "CENTER", layout.x / divisor, layout.y / divisor)
     layout.applying = false
+    layout.projected = true
 end
 
-local function HookAddonButtons(map)
-    -- AutoStartAttack uses its own circular math instead of GetMinimapShape.
-    -- Keep its saved angle, radius offset, click handlers, and drag behavior;
-    -- project only this known button's centered anchor onto the map's edges.
-    local button = ASA_MinimapButton
-    if not button or addonButtonLayouts[button] then return end
+local function HookAddonButton(button, map)
+    if addonButtonLayouts[button] or not button:IsObjectType("Button") or button:IsProtected()
+        or button == map.ZoomIn or button == map.ZoomOut then return end
+    -- LibDBIcon already supports map shapes. Limit the generic fallback to
+    -- small, draggable buttons, not quest pins, overlays, or native controls.
+    local name = button:GetName()
+    if name and name:find("^LibDBIcon") then return end
+    if not button:GetScript("OnDragStart") and not button:GetScript("OnDragStop") then return end
+    local width, height = button:GetSize()
+    if width < 12 or height < 12 or width > 64 or height > 64 or button:GetNumPoints() ~= 1 then return end
+    local point, relativeTo, relativePoint, x, y = button:GetPoint(1)
+    if point ~= "CENTER" or (relativeTo ~= map and relativeTo ~= "Minimap") or relativePoint ~= "CENTER" then return end
+    if type(x) ~= "number" or type(y) ~= "number" or x ~= x or y ~= y then return end
+    local radius = math.sqrt(x * x + y * y)
+    if radius < math.min(map:GetWidth(), map:GetHeight()) / 2 - 24
+        or radius > math.max(map:GetWidth(), map:GetHeight()) / 2 + 64 then return end
     local layout = {}
     addonButtonLayouts[button] = layout
     local function Capture(self, point, relativeTo, relativePoint, x, y)
         if layout.applying then return end
         layout.x, layout.y = nil, nil
+        layout.projected = false
         if point ~= "CENTER" or (relativeTo ~= map and relativeTo ~= "Minimap") or relativePoint ~= "CENTER"
             or type(x) ~= "number" or type(y) ~= "number" or x ~= x or y ~= y then return end
         local radius = math.sqrt(x * x + y * y)
@@ -49,6 +77,32 @@ local function HookAddonButtons(map)
     end
     hooksecurefunc(button, "SetPoint", Capture)
     Capture(button, button:GetPoint(1))
+end
+
+local function HookAddonButtons(map)
+    if not AlignAddonButtons() then return end
+    for _, button in ipairs({map:GetChildren()}) do HookAddonButton(button, map) end
+    if MinimapBackdrop then
+        for _, button in ipairs({MinimapBackdrop:GetChildren()}) do HookAddonButton(button, map) end
+    end
+end
+
+local function QueueAddonButtonScan()
+    if addonButtonScanQueued then return end
+    local function Scan()
+        addonButtonScanQueued = false
+        if InCombatLockdown() then
+            events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        elseif Minimap then
+            HookAddonButtons(Minimap)
+        end
+    end
+    if C_Timer and C_Timer.After then
+        addonButtonScanQueued = true
+        C_Timer.After(0, Scan)
+    else
+        Scan()
+    end
 end
 local function GetNumberSetting(key, default, minimum, maximum)
     local value = type(AggeMinimapDB) == "table" and AggeMinimapDB[key]
@@ -309,6 +363,7 @@ local function RefreshSettingsControls()
         controls.heightText:SetText("Height: " .. GetMapDimension("height") .. " px")
         controls.link:SetText(IsAspectLinked() and "Aspect ratio: Linked" or "Aspect ratio: Unlinked")
         controls.link:Select(IsAspectLinked())
+        controls.alignButtons:SetChecked(AlignAddonButtons())
         for _, group in ipairs(controls.positions) do
             local selected = GetPositionSetting(group.key, group.choices, group.default)
             for _, button in ipairs(group.buttons) do
@@ -392,6 +447,17 @@ local function CreateSettingsControls(parent, prefix)
         {"Top left", "Top right", "Bottom left", "Bottom right"}, -31)
     PositionButtons("zoomSide", zoomSides, "LEFT", "Zoom button edge",
         {"Left", "Right", "Top", "Bottom"}, -145)
+    controls.alignButtons = CreateFrame("CheckButton", prefix .. "AlignAddonButtons", parent, "UICheckButtonTemplate")
+    controls.alignButtons:SetSize(26, 26)
+    controls.alignButtons:SetPoint("TOPLEFT", 280, -259)
+    SettingsText(parent, "Align addon buttons to edges", 310, -265, "GameFontHighlightSmall")
+    SettingsText(parent, "Default: on. Draggable addon buttons.", 286, -296, "GameFontHighlightSmall")
+    controls.alignButtons:SetScript("OnClick", function(self)
+        AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+        AggeMinimapDB.alignAddonButtons = self:GetChecked()
+        RefreshSettingsControls()
+        ApplyLayout()
+    end)
     local footer = parent:CreateTexture(nil, "BACKGROUND")
     footer:SetColorTexture(0.65, 0.45, 0.2, 0.45)
     footer:SetPoint("TOPLEFT", 0, -331)
@@ -406,6 +472,7 @@ local function CreateSettingsControls(parent, prefix)
         AggeMinimapDB.spacing = 0
         AggeMinimapDB.linkAspect, AggeMinimapDB.aspectRatio = true, 1
         AggeMinimapDB.sunCorner, AggeMinimapDB.zoomSide = "TOPLEFT", "LEFT"
+        AggeMinimapDB.alignAddonButtons = true
         RefreshSettingsControls()
         ApplyLayout()
     end)
@@ -549,6 +616,7 @@ local function ApplyStyle()
                 OpenSettings()
             end
         end)
+        map:HookScript("OnEnter", QueueAddonButtonScan)
         hookedMap = map
     end
 
@@ -613,7 +681,8 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name ~= addonName and name ~= "Blizzard_Minimap" and name ~= "Blizzard_TimeManager"
-        and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" and name ~= "AutoStartAttack" then
+        and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" then
+        QueueAddonButtonScan()
         return
     end
     if event == "PLAYER_REGEN_ENABLED" then
@@ -621,6 +690,7 @@ events:SetScript("OnEvent", function(self, event, name)
     end
     RegisterSettings()
     ApplyStyle()
+    QueueAddonButtonScan()
     if event == "PLAYER_LOGIN" and not announced then
         announced = true
         print("|cff80e5b0AggeMinimap:|r v" .. addonVersion .. " loaded. /amm for settings.")

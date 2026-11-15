@@ -29,7 +29,7 @@ local function InstallSettings()
     }
 end
 local function Region()
-    return setmetatable({ alpha = 1, points = {}, events = {}, width = 198, height = 198, scale = 1 }, { __index = {
+    return setmetatable({ alpha = 1, points = {}, events = {}, children = {}, width = 198, height = 198, scale = 1 }, { __index = {
         SetAlpha = function(self, value) self.alpha = value end,
         SetVertexColor = function(self, r, g, b, a) self.vertexAlpha = a end,
         SetPoint = function(self, ...) table.insert(self.points, {...}) end,
@@ -49,6 +49,13 @@ local function Region()
         SetHitRectInsets = function() end,
         SetText = function(self, value) self.text = value end,
         GetName = function(self) return self.name end,
+        IsObjectType = function(self, kind) return self.objectType == kind end,
+        IsProtected = function(self) return self.protected or false end,
+        GetChildren = function(self) return unpackValues(self.children) end,
+        GetNumPoints = function(self) return #self.points end,
+        GetScript = function(self, script) return self[script] end,
+        SetChecked = function(self, value) self.checked = value end,
+        GetChecked = function(self) return self.checked end,
         SetFrameStrata = function() end,
         SetToplevel = function(self, value) self.topLevel = value end,
         Raise = function(self) self.raises = (self.raises or 0) + 1 end,
@@ -97,9 +104,10 @@ local function Region()
         end,
     } })
 end
-function CreateFrame(_, name, parent, template)
+function CreateFrame(kind, name, parent, template)
     local f = Region()
     f.name = name
+    f.objectType = kind
     if name then _G[name] = f end
     if template == 'BasicFrameTemplateWithInset' then f.TitleText = Region() end
     if template == 'PortraitFrameTemplate' then
@@ -115,6 +123,7 @@ function CreateFrame(_, name, parent, template)
         _G[name .. 'Text'] = Region()
     end
     f.parent = parent
+    if parent and parent.children then table.insert(parent.children, f) end
     table.insert(frames, f)
     return f
 end
@@ -221,7 +230,7 @@ Fire('PLAYER_ENTERING_WORLD')
 assert(#frames == 2 and hooks == 4, 'must not duplicate frames or hooks')
 assert(Minimap.OnMouseUp == click and Minimap.OnMouseWheel == wheel)
 assert(Minimap.zoomUpdates == zoomUpdates, 'unchanged layouts must not trigger render refresh')
-assert(Minimap.scriptHooks == 1, 'right-click hook must only be installed once')
+assert(Minimap.scriptHooks == 2, 'right-click and discovery hooks must only be installed once')
 combat = true
 local before = masks
 Fire('PLAYER_ENTERING_WORLD')
@@ -470,7 +479,15 @@ assert(messages[1] == '|cff80e5b0AggeMinimap:|r vtest-version loaded. /amm for s
 -- Match AutoStartAttack's real circular SetPoint calls, without replacing any
 -- of its click or drag handlers or changing its saved angle/radius settings.
 AggeMinimapResetDefaults:OnClick()
-ASA_MinimapButton = Region()
+local function AddonButton(name, parent)
+    local button = Region()
+    button.name, button.objectType = name, 'Button'
+    button:SetSize(31, 31)
+    button.OnDragStart = function() end
+    table.insert((parent or Minimap).children, button)
+    return button
+end
+ASA_MinimapButton = AddonButton('ASA_MinimapButton')
 local asaClick, asaDrag = function() end, function() end
 ASA_MinimapButton.OnClick, ASA_MinimapButton.OnDragStart = asaClick, asaDrag
 local function CirclePosition(angle, padding)
@@ -517,9 +534,71 @@ ASA_MinimapButton:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0)
 AggeMinimapWidth:SetValue(300)
 assert(ASA_MinimapButton.points[1][1] == 'TOPLEFT', 'non-circular positioning must be left alone')
 -- A button already present at a normal layout refresh is picked up too.
-ASA_MinimapButton = Region()
+ASA_MinimapButton = AddonButton('AnotherAddonButton')
 CirclePosition(math.pi / 4, 10)
 Fire('PLAYER_ENTERING_WORLD')
 CheckAddonPoint(90, 90)
+
+-- The generic fallback is optional, shared by both settings views, and restores
+-- the exact last position requested by the addon when switched off.
+assert(AggeMinimapAlignAddonButtons.checked and AggeMinimapOptionsAlignAddonButtons.checked)
+AggeMinimapAlignAddonButtons:SetChecked(false)
+AggeMinimapAlignAddonButtons:OnClick()
+assert(not AggeMinimapOptionsAlignAddonButtons.checked and AggeMinimapDB.alignAddonButtons == false)
+local circleCoordinate = 160 / math.sqrt(2)
+CheckAddonPoint(circleCoordinate, circleCoordinate)
+CirclePosition(0, 10)
+CheckAddonPoint(160, 0)
+CirclePosition(math.pi / 4, 10)
+CheckAddonPoint(circleCoordinate, circleCoordinate)
+AggeMinimapOptionsAlignAddonButtons:SetChecked(true)
+AggeMinimapOptionsAlignAddonButtons:OnClick()
+assert(AggeMinimapAlignAddonButtons.checked)
+CheckAddonPoint(90, 90)
+
+local function Candidate(name, x, y)
+    local button = AddonButton(name)
+    button:SetPoint('CENTER', Minimap, 'CENTER', x, y)
+    return button
+end
+local libraryButton = Candidate('LibDBIcon10AlreadySquareAware', 113, 113)
+local questPin = Candidate('QuestObjectivePin', 70, 70)
+questPin.OnDragStart = nil
+local centralMarker = Candidate('DraggableMapMarker', 10, 10)
+local protectedButton = Candidate('ProtectedMinimapButton', 113, 113)
+protectedButton.protected = true
+local largeOverlay = Candidate('LargeMapOverlay', 113, 113)
+largeOverlay:SetSize(200, 200)
+local multipleAnchors = Candidate('DockedMinimapButton', 113, 113)
+multipleAnchors:SetPoint('TOPLEFT', Minimap, 'TOPLEFT', 0, 0)
+Fire('ADDON_LOADED', 'UnrelatedButtonAddon')
+for _, button in ipairs({libraryButton, questPin, centralMarker, protectedButton, largeOverlay, multipleAnchors}) do
+    assert(rawget(button, 'SetPoint') == nil, 'libraries, quest pins, protected frames, and other layouts must not be hooked')
+end
+-- Lazy addon initialization is discovered on the next frame without polling.
+local timers = {}
+C_Timer = {After = function(_, callback) table.insert(timers, callback) end}
+Fire('ADDON_LOADED', 'LazyButtonAddon')
+Fire('ADDON_LOADED', 'AnotherLazyAddon')
+assert(#timers == 1, 'addon-load scans should be coalesced')
+local lazyButton = AddonButton('LazyAddonButton', MinimapBackdrop)
+lazyButton:SetPoint('CENTER', Minimap, 'CENTER', circleCoordinate, circleCoordinate)
+timers[1]()
+assert(math.abs(lazyButton.points[1][4] - 90) < 0.001, 'late buttons under the backdrop must be discovered')
+C_Timer = nil
+AggeMinimapAlignAddonButtons:SetChecked(false)
+AggeMinimapAlignAddonButtons:OnClick()
+AggeMinimapResetDefaults:OnClick()
+assert(AggeMinimapAlignAddonButtons.checked and AggeMinimapDB.alignAddonButtons)
+CirclePosition(math.pi / 4, 10)
+CheckAddonPoint(110, 110)
+combat = true
+AggeMinimapAlignAddonButtons:SetChecked(false)
+AggeMinimapAlignAddonButtons:OnClick()
+CheckAddonPoint(110, 110)
+combat = false
+Fire('PLAYER_REGEN_ENABLED')
+CheckAddonPoint(110 / math.sqrt(2), 110 / math.sqrt(2))
+AggeMinimapResetDefaults:OnClick()
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")
