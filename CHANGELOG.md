@@ -4,6 +4,7 @@
 
 - Added default-on "Align addon buttons to edges" in both settings views. Detects small draggable addon buttons using centered circular positioning, including AutoStartAttack, and keeps them on square/rectangular edges while dragging or resizing.
 - Turning alignment off restores the last position requested by each addon. Quest pins, protected frames, native zoom controls, and LibDBIcon-managed buttons are excluded.
+- Use the same edge offset as LibDBIcon for aligned custom buttons, avoiding staggered button positions caused by different addons' radius defaults.
 
 ## 1.3.0
 

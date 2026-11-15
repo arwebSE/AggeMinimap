@@ -16,6 +16,15 @@ local function AlignAddonButtons()
     return type(AggeMinimapDB) ~= "table" or AggeMinimapDB.alignAddonButtons ~= false
 end
 
+local function GetAddonButtonPadding()
+    local library = LibStub and LibStub("LibDBIcon-1.0", true)
+    local padding = library and library.radius
+    if type(padding) == "number" and padding == padding and math.abs(padding) < math.huge then
+        return padding
+    end
+    return 5 -- LibDBIcon's default distance from the map edge.
+end
+
 local function PlaceAddonButton(button, layout, map)
     if not layout.x or not layout.y then return end
     if button:IsProtected() then return end
@@ -33,8 +42,9 @@ local function PlaceAddonButton(button, layout, map)
         end
         return
     end
-    local halfWidth = map:GetWidth() / 2 + layout.padding
-    local halfHeight = map:GetHeight() / 2 + layout.padding
+    local padding = GetAddonButtonPadding()
+    local halfWidth = map:GetWidth() / 2 + padding
+    local halfHeight = map:GetHeight() / 2 + padding
     if halfWidth <= 0 or halfHeight <= 0 then return end
     local divisor = math.max(math.abs(layout.x) / halfWidth, math.abs(layout.y) / halfHeight)
     if divisor <= 0 then return end
@@ -72,7 +82,6 @@ local function HookAddonButton(button, map)
         local radius = math.sqrt(x * x + y * y)
         if radius == 0 or radius == math.huge then return end
         layout.x, layout.y = x, y
-        layout.padding = radius - map:GetWidth() / 2
         PlaceAddonButton(self, layout, map)
     end
     hooksecurefunc(button, "SetPoint", Capture)
