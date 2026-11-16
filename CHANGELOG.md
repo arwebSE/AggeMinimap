@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.5
+
+- Use the selected bold gold navigation arrow over a simplified dark map, keeping the shared satin-gold family frame. No minimap behavior changes.
+
 ## 1.3.4
 
 - Refine the family icon into a richly shaded golden compass with cyan light and a dark map background for stronger fantasy character and small-size contrast.

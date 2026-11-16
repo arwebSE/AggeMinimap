@@ -9,3 +9,7 @@ Final prompt specification: use the latest AggeStealthBar icon as the exact fram
 ## Fantasy refinement
 
 Built-in imagegen edit using the satin-gold AggeStealthBar icon as the mandatory border reference. Final prompt specification: preserve the exact outer frame and replace only the interior with an imposing antique-gold compass needle pointing northeast, with dramatic dimensional bevels, a small vivid cyan jewel at its pivot and a partial dark bronze compass ring. Use a midnight-teal map background with a few broad shadowy contours. Close crop, bold silhouette readable at 16 pixels, striking single focal object and premium hand-painted classic fantasy ability-icon atmosphere. Avoid flat navigation-app symbols, sterile vector art, compass lettering, clutter or scattered sparkles. No addon behavior changes.
+
+## Selected final artwork
+
+On 2026-11-16 the user selected the earlier bold upright navigation-arrow variant and attached the exact image. That supplied image is now the master `AggeMinimap-icon.png`; the game texture, listing image and small preview are resized/converted from it without regenerating or editing its artwork.
