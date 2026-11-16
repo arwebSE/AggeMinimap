@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- Replace the icon with a bold navigation arrow and simplified high-contrast map, using the shared Agge addon satin-gold frame. No minimap behavior changes.
+
 ## 1.3.2
 
 - Consolidated compatibility tests to reduce repeated setup and overlapping scenarios while preserving the key behavior checks.
