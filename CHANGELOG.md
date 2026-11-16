@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- Refine the family icon into a richly shaded golden compass with cyan light and a dark map background for stronger fantasy character and small-size contrast.
+
 ## 1.3.3
 
 - Replace the icon with a bold navigation arrow and simplified high-contrast map, using the shared Agge addon satin-gold frame. No minimap behavior changes.
