@@ -29,6 +29,7 @@ The tests simulate WoW frames. Before promoting the beta to a stable Release, ve
 - Tracking menu, zone button, clock, calendar, addon compartment, mail, queues, and addon minimap buttons work.
 - "Minimap icon compatibility fix" defaults on, stays synchronized between settings views, and resets to on. Hovering the checkbox or its label shows the explanation; leaving or closing the panel hides it. Test AutoStartAttack and another small draggable circular button across dragging, resizing, load order, late creation, and combat. Turning it off restores addon positions. Quest pins, protected frames, native zoom controls, and LibDBIcon-managed buttons stay untouched.
 - Wheel and button zoom, map clicks, rotation on/off, zoning, and dungeon maps work.
+- Compare "Quest-area outline fix" on/off while inside and near a tracked quest area: only the native decorative ring should disappear, with fill and icons retained. Check squares, rectangles, rotation, combat deferral, and reset to the default off. The reported visual issue is unconfirmed until reproduced in-game.
 - Zoom buttons and their hover area stay on the selected edge, and the sun/moon stays in the selected corner, across rectangular sizes, Edit Mode scales, and header positions.
 - Layout updates during combat wait until combat ends without blocked actions.
 - Disable and reload restores the default UI.

@@ -9,6 +9,23 @@ local headerUnderneath = false
 local settingsWindow
 local announced = false
 local renderedMap, renderedWidth, renderedHeight, renderedScale
+local hiddenQuestRingMap
+
+local function QuestAreaFixEnabled()
+    return type(AggeMinimapDB) == "table" and AggeMinimapDB.questAreaFix == true
+end
+
+local function ApplyQuestAreaFix(map)
+    if not map.SetQuestBlobRingAlpha then return end
+    -- Only suppress the decorative ring; keep objective-area fill and pins.
+    if QuestAreaFixEnabled() then
+        map:SetQuestBlobRingAlpha(0)
+        hiddenQuestRingMap = map
+    elseif hiddenQuestRingMap == map then
+        map:SetQuestBlobRingAlpha(1)
+        hiddenQuestRingMap = nil
+    end
+end
 local addonButtonLayouts = setmetatable({}, {__mode = "k"})
 local addonButtonScanQueued = false
 
@@ -184,6 +201,7 @@ local function ApplyLayout()
     end
 
     local spacing = GetSpacing()
+    ApplyQuestAreaFix(map)
     -- Capture existing circular offsets before changing map dimensions.
     HookAddonButtons(map)
     local scale = container:GetScale()
@@ -373,6 +391,7 @@ local function RefreshSettingsControls()
         controls.link:SetText(IsAspectLinked() and "Aspect ratio: Linked" or "Aspect ratio: Unlinked")
         controls.link:Select(IsAspectLinked())
         controls.alignButtons:SetChecked(AlignAddonButtons())
+        controls.questAreaFix:SetChecked(QuestAreaFixEnabled())
         for _, group in ipairs(controls.positions) do
             local selected = GetPositionSetting(group.key, group.choices, group.default)
             for _, button in ipairs(group.buttons) do
@@ -480,6 +499,27 @@ local function CreateSettingsControls(parent, prefix)
         RefreshSettingsControls()
         ApplyLayout()
     end)
+    controls.questAreaFix = CreateFrame("CheckButton", prefix .. "QuestAreaFix", parent, "UICheckButtonTemplate")
+    controls.questAreaFix:SetSize(26, 26)
+    controls.questAreaFix:SetPoint("TOPLEFT", 280, -293)
+    controls.questAreaFix:SetHitRectInsets(0, -246, 0, 0)
+    SettingsText(parent, "Quest-area outline fix", 310, -299, "GameFontHighlightSmall")
+    controls.questAreaFix:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Quest-area outline fix (experimental)", 1, 0.82, 0)
+        GameTooltip:AddLine("Hides the decorative quest-area ring that may look circular on a square minimap. Keeps shaded quest areas and icons.", 1, 1, 1, true)
+        GameTooltip:AddLine("Disabled by default. Compare on/off while tracking a quest area.", 1, 1, 1, true)
+        GameTooltip:AddLine("Changes made during combat apply when combat ends.", 0.8, 0.73, 0.6, true)
+        GameTooltip:Show()
+    end)
+    controls.questAreaFix:SetScript("OnLeave", HideCompatibilityTooltip)
+    controls.questAreaFix:SetScript("OnHide", HideCompatibilityTooltip)
+    controls.questAreaFix:SetScript("OnClick", function(self)
+        AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+        AggeMinimapDB.questAreaFix = self:GetChecked()
+        RefreshSettingsControls()
+        ApplyLayout()
+    end)
     local footer = parent:CreateTexture(nil, "BACKGROUND")
     footer:SetColorTexture(0.65, 0.45, 0.2, 0.45)
     footer:SetPoint("TOPLEFT", 0, -331)
@@ -495,6 +535,7 @@ local function CreateSettingsControls(parent, prefix)
         AggeMinimapDB.linkAspect, AggeMinimapDB.aspectRatio = true, 1
         AggeMinimapDB.sunCorner, AggeMinimapDB.zoomSide = "TOPLEFT", "LEFT"
         AggeMinimapDB.alignAddonButtons = true
+        AggeMinimapDB.questAreaFix = false
         RefreshSettingsControls()
         ApplyLayout()
     end)

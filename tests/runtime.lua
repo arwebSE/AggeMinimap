@@ -145,6 +145,11 @@ local function MakeMinimap()
         masks = masks + 1
     end
     function Minimap:EnableMouseWheel(value) self.wheel = value end
+    Minimap.questRingAlpha = 1
+    function Minimap:SetQuestBlobRingAlpha(value)
+        assert(not combat, 'quest-area changes must wait until combat ends')
+        self.questRingAlpha = value
+    end
     function Minimap:GetFrameLevel() return 4 end
     Minimap.zoom, Minimap.zoomUpdates = 0, 0
     function Minimap:GetZoom() return self.zoom end
@@ -573,5 +578,19 @@ LibStub = nil
 AggeMinimapResetDefaults:OnClick()
 assert(AggeMinimapDB.alignAddonButtons and AggeMinimapAlignAddonButtons.checked)
 CheckPoint(105, 105)
+
+assert(not AggeMinimapQuestAreaFix.checked and Minimap.questRingAlpha == 1)
+AggeMinimapQuestAreaFix:SetChecked(true)
+AggeMinimapQuestAreaFix:OnClick()
+assert(Minimap.questRingAlpha == 0 and AggeMinimapOptionsQuestAreaFix.checked)
+combat = true
+AggeMinimapOptionsQuestAreaFix:SetChecked(false)
+AggeMinimapOptionsQuestAreaFix:OnClick()
+assert(Minimap.questRingAlpha == 0)
+combat = false
+Fire('PLAYER_REGEN_ENABLED')
+assert(Minimap.questRingAlpha == 1 and not AggeMinimapQuestAreaFix.checked)
+AggeMinimapResetDefaults:OnClick()
+assert(not AggeMinimapDB.questAreaFix)
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")

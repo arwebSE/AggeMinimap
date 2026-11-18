@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added an experimental, default-off Quest-area outline fix toggle to hide the native decorative quest-area ring for visual comparison. Shaded objective areas and quest icons are unchanged; switching it off restores the ring.
+
 ## 1.3.5
 
 - Use the selected bold gold navigation arrow over a simplified dark map, keeping the shared satin-gold family frame. No minimap behavior changes.
