@@ -14,6 +14,7 @@ expected = {
     'AggeMinimap/README.md',
     'AggeMinimap/CHANGELOG.md',
 }
+expected.update(path.as_posix() for path in Path('AggeMinimap/Masks').glob('*.tga'))
 with ZipFile(archives[0]) as archive:
     files = {name for name in archive.namelist() if not name.endswith('/')}
     assert files == expected, f'Unexpected package contents: {files ^ expected}'

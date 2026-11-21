@@ -46,7 +46,7 @@ local function Region()
         ClearAllPoints = function(self) self.points = {} end,
         GetPoint = function(self) return unpackValues(self.points[1] or {"TOP"}) end,
         SetFixedSize = function(self, w, h) self.fixedWidth, self.fixedHeight = w, h end,
-        SetHitRectInsets = function() end,
+        SetHitRectInsets = function(self, ...) self.hitInsets = {...} end,
         SetText = function(self, value) self.text = value end,
         GetName = function(self) return self.name end,
         IsObjectType = function(self, kind) return self.objectType == kind end,
@@ -317,7 +317,7 @@ local function CheckSingleRow()
     local function CheckAnchor(frame, anchor, relativeAnchor, x, y)
         assert(#frame.points == 1, 'edge controls must have one anchor')
         local point = frame.points[1]
-        assert(point[1] == anchor and point[2] == Minimap and point[3] == relativeAnchor)
+        assert(point[1] == anchor and point[2] == MinimapCluster.MinimapContainer and point[3] == relativeAnchor)
         assert(point[4] == x and point[5] == y, 'edge controls must stay aligned with the square')
     end
     local side = AggeMinimapDB.zoomSide or 'LEFT'
@@ -347,10 +347,13 @@ local function CheckSingleRow()
         assert(x >= outerSpacing - 0.001 and right <= MinimapCluster.width - outerSpacing + 0.001)
         previousRight = right
     end
-    assert(Minimap.width == MinimapCluster.MinimapContainer.width and Minimap.height == MinimapCluster.MinimapContainer.height)
+    local viewport = MinimapCluster.MinimapContainer
+    local canvas = math.max(viewport.width, viewport.height)
+    assert(Minimap.width == canvas and Minimap.height == canvas, 'native canvas must remain square to preserve terrain/arrow/ping alignment')
+    assert(Minimap.hitInsets[1] == (canvas - viewport.width) / 2 and Minimap.hitInsets[3] == (canvas - viewport.height) / 2)
     assert(Minimap.renderWidth == Minimap.width and Minimap.renderHeight == Minimap.height, 'render surface must follow frame size')
     assert(#Minimap.points == 1 and Minimap.points[1][1] == 'CENTER' and Minimap.points[1][2] == MinimapCluster.MinimapContainer)
-    assert(frames[2].width == Minimap.width + 2 and frames[2].height == Minimap.height + 2, 'border must follow both map dimensions')
+    assert(frames[2].width == viewport.width + 2 and frames[2].height == viewport.height + 2, 'border must follow visible dimensions')
     assert(#frames[2].points == 1 and frames[2].points[1][1] == 'CENTER' and frames[2].points[1][2] == Minimap)
 end
 for _, size in ipairs({160, 198, 260, 360}) do
@@ -398,16 +401,16 @@ assert(AggeMinimapOptionsSpacing.value == 9, '/amm changes must sync to Options'
 AggeMinimapLinkAspect:OnClick()
 assert(not AggeMinimapOptionsLinkAspect.selected, 'link toggle must sync between views')
 AggeMinimapHeight:SetValue(200)
-assert(Minimap.width == 250 and Minimap.height == 200, 'unlinked height must preserve width')
+assert(MinimapCluster.MinimapContainer.width == 250 and MinimapCluster.MinimapContainer.height == 200, 'unlinked height must preserve width')
 AggeMinimapOptionsWidth:SetValue(300)
-assert(Minimap.width == 300 and Minimap.height == 200, 'unlinked width must preserve height')
+assert(MinimapCluster.MinimapContainer.width == 300 and MinimapCluster.MinimapContainer.height == 200, 'unlinked width must preserve height')
 AggeMinimapOptionsLinkAspect:OnClick()
 AggeMinimapHeight:SetValue(240)
-assert(Minimap.width == 360 and Minimap.height == 240, 'link must preserve the current 3:2 ratio')
+assert(MinimapCluster.MinimapContainer.width == 360 and MinimapCluster.MinimapContainer.height == 240, 'link must preserve the current 3:2 ratio')
 AggeMinimapWidth:SetValue(160)
-assert(Minimap.width == 240 and Minimap.height == 160, 'linked minimum must constrain both dimensions')
+assert(MinimapCluster.MinimapContainer.width == 240 and MinimapCluster.MinimapContainer.height == 160, 'linked minimum must constrain both dimensions')
 AggeMinimapHeight:SetValue(360)
-assert(Minimap.width == 360 and Minimap.height == 240, 'linked maximum must constrain both dimensions')
+assert(MinimapCluster.MinimapContainer.width == 360 and MinimapCluster.MinimapContainer.height == 240, 'linked maximum must constrain both dimensions')
 AggeMinimapLinkAspect:OnClick()
 AggeMinimapWidth:SetValue(160)
 AggeMinimapHeight:SetValue(360)
@@ -420,17 +423,17 @@ for _, scale in ipairs({0.5, 1, 2}) do
             CheckSingleRow()
             assert(MinimapCluster.width >= Minimap.width * scale, 'negative spacing must contain map width')
             assert(MinimapCluster.height >= Minimap.height * scale, 'negative spacing must contain map height')
-            local mapTop = -MinimapCluster.MinimapContainer.points[1][5] * scale
+            local mapTop = -MinimapCluster.MinimapContainer.points[1][5] * scale - (Minimap.height - MinimapCluster.MinimapContainer.height) / 2 * scale
             assert(mapTop >= 0 and mapTop + Minimap.height * scale <= MinimapCluster.height + 0.001)
         end
     end
 end
 combat = true
 AggeMinimapWidth:SetValue(210)
-assert(Minimap.width == 160 and AggeMinimapDB.width == 210, 'dimension changes must defer in combat')
+assert(MinimapCluster.MinimapContainer.width == 160 and AggeMinimapDB.width == 210, 'dimension changes must defer in combat')
 combat = false
 Fire('PLAYER_REGEN_ENABLED')
-assert(Minimap.width == 210 and Minimap.height == 360)
+assert(MinimapCluster.MinimapContainer.width == 210 and Minimap.height == 360)
 AggeMinimapSpacing:SetValue(-100)
 assert(AggeMinimapDB.spacing == -20)
 Fire('PLAYER_ENTERING_WORLD')
@@ -442,7 +445,7 @@ assert(AggeMinimapDB.width == 200 and AggeMinimapDB.height == 200 and AggeMinima
 assert(AggeMinimapDB.size == nil and AggeMinimapLinkAspect.selected)
 assert(AggeMinimapWidth.value == 200 and AggeMinimapOptionsHeight.value == 200, 'reset must sync both settings views')
 assert(AggeMinimapsunCornerTOPLEFT.selected and AggeMinimapzoomSideLEFT.selected)
-assert(Minimap.width == 210 and Minimap.height == 360, 'reset must defer layout in combat')
+assert(MinimapCluster.MinimapContainer.width == 210 and Minimap.height == 360, 'reset must defer layout in combat')
 combat = false
 Fire('PLAYER_REGEN_ENABLED')
 assert(Minimap.width == 200 and Minimap.height == 200)
@@ -467,7 +470,8 @@ AggeMinimapLinkAspect:OnClick()
 for _, dimensions in ipairs({{360, 160}, {160, 360}, {300, 200}, {200, 300}}) do
     AggeMinimapWidth:SetValue(dimensions[1])
     AggeMinimapHeight:SetValue(dimensions[2])
-    assert(Minimap.renderWidth == dimensions[1] and Minimap.renderHeight == dimensions[2],
+    local canvas = math.max(dimensions[1], dimensions[2])
+    assert(Minimap.renderWidth == canvas and Minimap.renderHeight == canvas,
         'wide and tall rectangles must refresh both render dimensions')
     assert(Minimap:GetZoom() == 5, 'rectangle resizing must preserve zoom')
     CheckSingleRow()
@@ -544,8 +548,10 @@ Fire('ADDON_LOADED', 'LazyAddon')
 Fire('ADDON_LOADED', 'AnotherAddon')
 assert(#timers == 1)
 local lateButton = AddonButton('LazyButton', MinimapBackdrop)
+local libraryButton = AddonButton('LibDBIcon10AlreadyManaged')
+libraryButton.OnDragStart, libraryButton.db = nil, {minimapPos = 45}
 local cases = {
-    {name = 'LibDBIcon10AlreadyManaged'}, {name = 'QuestPin', noDrag = true},
+    {name = 'QuestPin', noDrag = true},
     {name = 'MapMarker', center = true}, {name = 'ProtectedButton', protected = true},
     {name = 'LargeOverlay', size = 200}, {name = 'DockedButton', docked = true},
 }
@@ -563,6 +569,7 @@ for _, case in ipairs(cases) do
 end
 timers[1]()
 assert(math.abs(lateButton.points[1][4] - 85) < 0.001, 'late backdrop buttons must be discovered')
+assert(math.abs(libraryButton.points[1][5] - 85) < 0.001, 'locked library buttons must follow the visible rectangle')
 for _, candidate in ipairs(excluded) do
     assert(rawget(candidate, 'SetPoint') == nil, 'unrelated frames must not be hooked')
 end
@@ -578,6 +585,7 @@ LibStub = nil
 AggeMinimapResetDefaults:OnClick()
 assert(AggeMinimapDB.alignAddonButtons and AggeMinimapAlignAddonButtons.checked)
 CheckPoint(105, 105)
+assert(math.abs(libraryButton.points[1][4] - 110 / math.sqrt(2)) < 0.001, 'square maps must restore library positioning')
 
 assert(not AggeMinimapQuestAreaFix.checked and Minimap.questRingAlpha == 1)
 AggeMinimapQuestAreaFix:SetChecked(true)

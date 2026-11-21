@@ -42,6 +42,11 @@ local function GetAddonButtonPadding()
     return 5 -- LibDBIcon's default distance from the map edge.
 end
 
+local function GetVisibleMapSize(map)
+    local container = MinimapCluster and MinimapCluster.MinimapContainer
+    return (container or map):GetSize()
+end
+
 local function PlaceAddonButton(button, layout, map)
     if not layout.x or not layout.y then return end
     if button:IsProtected() then return end
@@ -49,7 +54,8 @@ local function PlaceAddonButton(button, layout, map)
         events:RegisterEvent("PLAYER_REGEN_ENABLED")
         return
     end
-    if not AlignAddonButtons() then
+    local width, height = GetVisibleMapSize(map)
+    if (layout.library and width == height) or (not layout.library and not AlignAddonButtons()) then
         if layout.projected then
             layout.applying = true
             button:ClearAllPoints()
@@ -60,14 +66,19 @@ local function PlaceAddonButton(button, layout, map)
         return
     end
     local padding = GetAddonButtonPadding()
-    local halfWidth = map:GetWidth() / 2 + padding
-    local halfHeight = map:GetHeight() / 2 + padding
+    local halfWidth = width / 2 + padding
+    local halfHeight = height / 2 + padding
     if halfWidth <= 0 or halfHeight <= 0 then return end
-    local divisor = math.max(math.abs(layout.x) / halfWidth, math.abs(layout.y) / halfHeight)
+    local x, y = layout.x, layout.y
+    local angle = layout.library and ((button.db and button.db.minimapPos) or button.minimapPos)
+    if type(angle) == "number" and angle == angle then
+        x, y = math.cos(math.rad(angle)), math.sin(math.rad(angle))
+    end
+    local divisor = math.max(math.abs(x) / halfWidth, math.abs(y) / halfHeight)
     if divisor <= 0 then return end
     layout.applying = true
     button:ClearAllPoints()
-    button:SetPoint("CENTER", map, "CENTER", layout.x / divisor, layout.y / divisor)
+    button:SetPoint("CENTER", map, "CENTER", x / divisor, y / divisor)
     layout.applying = false
     layout.projected = true
 end
@@ -75,20 +86,22 @@ end
 local function HookAddonButton(button, map)
     if addonButtonLayouts[button] or not button:IsObjectType("Button") or button:IsProtected()
         or button == map.ZoomIn or button == map.ZoomOut then return end
-    -- LibDBIcon already supports map shapes. Limit the generic fallback to
-    -- small, draggable buttons, not quest pins, overlays, or native controls.
+    -- Library buttons need the visible rectangle rather than the square native
+    -- canvas. The optional fallback remains limited to draggable addon buttons.
     local name = button:GetName()
-    if name and name:find("^LibDBIcon") then return end
-    if not button:GetScript("OnDragStart") and not button:GetScript("OnDragStop") then return end
+    local library = name and name:find("^LibDBIcon") ~= nil
+    local visibleWidth, visibleHeight = GetVisibleMapSize(map)
+    if library and visibleWidth == visibleHeight then return end
+    if not library and (not AlignAddonButtons() or (not button:GetScript("OnDragStart") and not button:GetScript("OnDragStop"))) then return end
     local width, height = button:GetSize()
     if width < 12 or height < 12 or width > 64 or height > 64 or button:GetNumPoints() ~= 1 then return end
     local point, relativeTo, relativePoint, x, y = button:GetPoint(1)
     if point ~= "CENTER" or (relativeTo ~= map and relativeTo ~= "Minimap") or relativePoint ~= "CENTER" then return end
     if type(x) ~= "number" or type(y) ~= "number" or x ~= x or y ~= y then return end
     local radius = math.sqrt(x * x + y * y)
-    if radius < math.min(map:GetWidth(), map:GetHeight()) / 2 - 24
-        or radius > math.max(map:GetWidth(), map:GetHeight()) / 2 + 64 then return end
-    local layout = {}
+    if radius < math.min(visibleWidth, visibleHeight) / 2 - 24
+        or radius > math.max(visibleWidth, visibleHeight) / 2 + 64 then return end
+    local layout = {library = library}
     addonButtonLayouts[button] = layout
     local function Capture(self, point, relativeTo, relativePoint, x, y)
         if layout.applying then return end
@@ -106,7 +119,6 @@ local function HookAddonButton(button, map)
 end
 
 local function HookAddonButtons(map)
-    if not AlignAddonButtons() then return end
     for _, button in ipairs({map:GetChildren()}) do HookAddonButton(button, map) end
     if MinimapBackdrop then
         for _, button in ipairs({MinimapBackdrop:GetChildren()}) do HookAddonButton(button, map) end
@@ -202,8 +214,6 @@ local function ApplyLayout()
 
     local spacing = GetSpacing()
     ApplyQuestAreaFix(map)
-    -- Capture existing circular offsets before changing map dimensions.
-    HookAddonButtons(map)
     local scale = container:GetScale()
     local width = GetMapDimension("width")
     local height = GetMapDimension("height")
@@ -212,8 +222,17 @@ local function ApplyLayout()
     end
     -- The stock container includes room for circular art outside the map.
     -- Fit it to the map, then size the Edit Mode frame explicitly.
-    map:SetSize(width, height)
+    local canvasSize = math.max(width, height)
+    local cropX, cropY = (canvasSize - width) / 2, (canvasSize - height) / 2
+    -- Native terrain, player arrow, and pings share a projection only on a
+    -- square canvas. Crop its center; never distort that native projection.
+    map:SetSize(canvasSize, canvasSize)
     container:SetSize(width, height)
+    local span = math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
+    local mask = span == 256 and "Square.tga" or ("Masks\\" .. (width > height and "W" or "T") .. span .. ".tga")
+    map:SetMaskTexture("Interface\\AddOns\\AggeMinimap\\" .. mask)
+    map:SetHitRectInsets(cropX, cropX, cropY, cropY)
+    HookAddonButtons(map)
     for button, layout in pairs(addonButtonLayouts) do
         PlaceAddonButton(button, layout, map)
     end
@@ -230,15 +249,18 @@ local function ApplyLayout()
     local rowHeight = 23 * rowScale
     local outerSpacing = math.max(0, spacing)
     local headerGap = math.max(spacing, -rowHeight)
-    local frameWidth = width * scale + 2 * outerSpacing
-    local frameHeight = height * scale + rowHeight + 2 * outerSpacing + headerGap
+    -- Include the hidden canvas margins in screen clamping. Clipping the native
+    -- canvas off-screen can introduce another terrain-origin displacement.
+    local frameWidth = canvasSize * scale + 2 * outerSpacing
+    local frameHeight = canvasSize * scale + rowHeight + 2 * outerSpacing + headerGap
     cluster:SetFixedSize(frameWidth, frameHeight)
     cluster:SetSize(frameWidth, frameHeight)
     cluster:SetHitRectInsets(0, 0, 0, 0)
+    cluster:SetClampedToScreen(true)
 
     container:ClearAllPoints()
     container:SetPoint("TOP", cluster, "TOP", 0,
-        -(outerSpacing + (headerUnderneath and 0 or rowHeight + headerGap)) / scale)
+        -(outerSpacing + cropY * scale + (headerUnderneath and 0 or rowHeight + headerGap)) / scale)
 
     -- Keep the native zoom buttons and their hover area on the selected edge.
     local zoomSide = GetPositionSetting("zoomSide", zoomSides, "LEFT")
@@ -247,16 +269,16 @@ local function ApplyLayout()
     local zoomX, zoomY = vertical and inset or 0, vertical and 0 or inset
     if map.ZoomIn then
         map.ZoomIn:ClearAllPoints()
-        map.ZoomIn:SetPoint("CENTER", map, zoomSide, zoomX + (vertical and 0 or -10), zoomY + (vertical and 10 or 0))
+        map.ZoomIn:SetPoint("CENTER", container, zoomSide, zoomX + (vertical and 0 or -10), zoomY + (vertical and 10 or 0))
     end
     if map.ZoomOut then
         map.ZoomOut:ClearAllPoints()
-        map.ZoomOut:SetPoint("CENTER", map, zoomSide, zoomX + (vertical and 0 or 10), zoomY + (vertical and -10 or 0))
+        map.ZoomOut:SetPoint("CENTER", container, zoomSide, zoomX + (vertical and 0 or 10), zoomY + (vertical and -10 or 0))
     end
     if map.ZoomHitArea then
         map.ZoomHitArea:ClearAllPoints()
         map.ZoomHitArea:SetSize(vertical and 40 or 48, vertical and 48 or 40)
-        map.ZoomHitArea:SetPoint("CENTER", map, zoomSide, zoomX, zoomY)
+        map.ZoomHitArea:SetPoint("CENTER", container, zoomSide, zoomX, zoomY)
     end
     if cluster.DielFrame then
         -- This frame belongs to the cluster, so match the map container's
@@ -264,11 +286,11 @@ local function ApplyLayout()
         cluster.DielFrame:SetScale(scale)
         cluster.DielFrame:ClearAllPoints()
         local corner = GetPositionSetting("sunCorner", sunCorners, "TOPLEFT")
-        cluster.DielFrame:SetPoint(corner, map, corner,
+        cluster.DielFrame:SetPoint(corner, container, corner,
             corner:find("LEFT") and 4 or -4, corner:find("TOP") and -4 or 4)
     end
 
-    local rowY = headerUnderneath and (height * scale + outerSpacing + headerGap) or outerSpacing
+    local rowY = cropY * scale + (headerUnderneath and (height * scale + outerSpacing + headerGap) or outerSpacing)
     local rowWidth = width * scale / rowScale
     local gap = 3
     local left, right = 0, rowWidth
@@ -277,7 +299,7 @@ local function ApplyLayout()
         frame:SetSize(elementWidth, elementHeight)
         frame:ClearAllPoints()
         frame:SetPoint("TOPLEFT", cluster, "TOPLEFT",
-            outerSpacing / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
+            (outerSpacing + cropX * scale) / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
     end
     -- Anchor every header control to the same row. Do not inherit Blizzard's
     -- stacked calendar/compartment anchors or its clock-inside-zone placement.
@@ -671,12 +693,23 @@ local function ApplyStyle()
         return
     end
 
-    map:SetMaskTexture("Interface\\AddOns\\AggeMinimap\\Square.tga")
     map:EnableMouseWheel(true) -- Forever already implements mouse-wheel zoom.
     if map ~= hookedMap then
         map:HookScript("OnMouseUp", function(_, button)
             if button == "RightButton" then
                 OpenSettings()
+            elseif button == "LeftButton" and map.PingLocation and map.GetEffectiveScale then
+                -- Blizzard's handler rejects square/rectangle corners outside
+                -- its old circular hit test. Fill only that missing region.
+                local cursorX, cursorY = GetCursorPosition()
+                local centerX, centerY = map:GetCenter()
+                local scale = map:GetEffectiveScale()
+                local x, y = cursorX / scale - centerX, cursorY / scale - centerY
+                local width, height = GetVisibleMapSize(map)
+                if math.abs(x) <= width / 2 and math.abs(y) <= height / 2
+                    and x * x + y * y >= (map:GetWidth() / 2) ^ 2 then
+                    map:PingLocation(x, y)
+                end
             end
         end)
         map:HookScript("OnEnter", QueueAddonButtonScan)

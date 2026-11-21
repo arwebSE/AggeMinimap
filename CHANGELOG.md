@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed player-arrow, terrain, and ping offsets in rectangular layouts by keeping the native minimap canvas square and displaying a centered rectangular crop. Controls, borders, button placement, and mouse input follow the visible area.
 - Added an experimental, default-off Quest-area outline fix toggle to hide the native decorative quest-area ring for visual comparison. Shaded objective areas and quest icons are unchanged; switching it off restores the ring.
 
 ## 1.3.5
