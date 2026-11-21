@@ -23,6 +23,7 @@ The tests simulate WoW frames. Before promoting the beta to a stable Release, ve
 - New profiles start at 200 × 200 with linked dimensions and 0 spacing; upgrades preserve the old saved square size.
 - Unlinked sliders resize independently; re-linking preserves current proportions, including at either dimension's bounds.
 - Size extremes and Edit Mode scales preserve dimensions and keep header controls on one row.
+- Wide and tall Edit Mode selection highlights follow the visible map and header, without hidden canvas strips. Check both header positions, spacing extremes, and screen edges; clamping must retain the full native canvas without adding an extra header margin.
 - Negative spacing overlaps the header without shrinking Edit Mode bounds inside the map, with the header above and below.
 - Header above and below have no excessive gap, wrapping, or overlapping controls.
 - Long zone names stay within their allocated area.

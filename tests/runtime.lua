@@ -47,6 +47,7 @@ local function Region()
         GetPoint = function(self) return unpackValues(self.points[1] or {"TOP"}) end,
         SetFixedSize = function(self, w, h) self.fixedWidth, self.fixedHeight = w, h end,
         SetHitRectInsets = function(self, ...) self.hitInsets = {...} end,
+        SetClampRectInsets = function(self, ...) self.clampInsets = {...} end,
         SetText = function(self, value) self.text = value end,
         GetName = function(self) return self.name end,
         IsObjectType = function(self, kind) return self.objectType == kind end,
@@ -421,10 +422,16 @@ for _, scale in ipairs({0.5, 1, 2}) do
         for _, underneath in ipairs({false, true}) do
             MinimapCluster:SetHeaderUnderneath(underneath)
             CheckSingleRow()
-            assert(MinimapCluster.width >= Minimap.width * scale, 'negative spacing must contain map width')
-            assert(MinimapCluster.height >= Minimap.height * scale, 'negative spacing must contain map height')
+            local viewport = MinimapCluster.MinimapContainer
+            local rowHeight, outerSpacing = 23 * MinimapCluster.Tracking.scale, math.max(0, spacing)
+            assert(MinimapCluster.width == viewport.width * scale + 2 * outerSpacing, 'selection must exclude hidden horizontal margins')
+            assert(math.abs(MinimapCluster.height - (viewport.height * scale + rowHeight + 2 * outerSpacing + math.max(spacing, -rowHeight))) < 0.001,
+                'selection must contain only the visible map and header')
             local mapTop = -MinimapCluster.MinimapContainer.points[1][5] * scale - (Minimap.height - MinimapCluster.MinimapContainer.height) / 2 * scale
-            assert(mapTop >= 0 and mapTop + Minimap.height * scale <= MinimapCluster.height + 0.001)
+            local clamp = MinimapCluster.clampInsets
+            assert(mapTop >= -clamp[3] - 0.001 and mapTop + Minimap.height * scale <= MinimapCluster.height - clamp[4] + 0.001,
+                'screen clamping must still contain the native canvas')
+            assert(MinimapCluster.width - clamp[1] + clamp[2] >= Minimap.width * scale - 0.001)
         end
     end
 end

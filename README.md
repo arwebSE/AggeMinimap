@@ -24,7 +24,7 @@ Right-click the minimap, type **`/amm`**, or open **Options → AddOns → AggeM
 
 For **Forever 1.60.1**. Use one minimap skin at a time.
 
-Rectangular maps crop a square native canvas to keep terrain, player position, and pings aligned. Edit Mode bounds include its hidden margins so that the native canvas stays on-screen; this leaves an inset when placing a rectangle near the screen edge.
+Rectangular maps crop a square native canvas to keep terrain, player position, and pings aligned. Edit Mode selects only the visible map and header. Separate screen clamping keeps the hidden canvas on-screen, so rectangular layouts still need an inset along their cropped edges.
 
 [Report an issue](https://github.com/arwebSE/AggeMinimap/issues) · [AggeHealBot](https://www.curseforge.com/wow/addons/aggehealbot)
 

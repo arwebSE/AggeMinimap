@@ -249,18 +249,24 @@ local function ApplyLayout()
     local rowHeight = 23 * rowScale
     local outerSpacing = math.max(0, spacing)
     local headerGap = math.max(spacing, -rowHeight)
-    -- Include the hidden canvas margins in screen clamping. Clipping the native
-    -- canvas off-screen can introduce another terrain-origin displacement.
-    local frameWidth = canvasSize * scale + 2 * outerSpacing
-    local frameHeight = canvasSize * scale + rowHeight + 2 * outerSpacing + headerGap
+    -- Edit Mode selects the visible map and header, not the hidden canvas.
+    local frameWidth = width * scale + 2 * outerSpacing
+    local frameHeight = height * scale + rowHeight + 2 * outerSpacing + headerGap
     cluster:SetFixedSize(frameWidth, frameHeight)
     cluster:SetSize(frameWidth, frameHeight)
     cluster:SetHitRectInsets(0, 0, 0, 0)
+    -- Keep only the actual native canvas on-screen. Clamp bounds can extend
+    -- beyond the selection without reserving a second header-sized margin.
+    local mapTop = outerSpacing + (headerUnderneath and 0 or rowHeight + headerGap)
+    local clampX = math.max(0, cropX * scale - outerSpacing)
+    local clampTop = math.max(0, cropY * scale - mapTop)
+    local clampBottom = math.max(0, mapTop + (height + cropY) * scale - frameHeight)
+    cluster:SetClampRectInsets(-clampX, clampX, clampTop, -clampBottom)
     cluster:SetClampedToScreen(true)
 
     container:ClearAllPoints()
     container:SetPoint("TOP", cluster, "TOP", 0,
-        -(outerSpacing + cropY * scale + (headerUnderneath and 0 or rowHeight + headerGap)) / scale)
+        -mapTop / scale)
 
     -- Keep the native zoom buttons and their hover area on the selected edge.
     local zoomSide = GetPositionSetting("zoomSide", zoomSides, "LEFT")
@@ -290,7 +296,7 @@ local function ApplyLayout()
             corner:find("LEFT") and 4 or -4, corner:find("TOP") and -4 or 4)
     end
 
-    local rowY = cropY * scale + (headerUnderneath and (height * scale + outerSpacing + headerGap) or outerSpacing)
+    local rowY = headerUnderneath and (height * scale + outerSpacing + headerGap) or outerSpacing
     local rowWidth = width * scale / rowScale
     local gap = 3
     local left, right = 0, rowWidth
@@ -299,7 +305,7 @@ local function ApplyLayout()
         frame:SetSize(elementWidth, elementHeight)
         frame:ClearAllPoints()
         frame:SetPoint("TOPLEFT", cluster, "TOPLEFT",
-            (outerSpacing + cropX * scale) / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
+            outerSpacing / rowScale + x, -(rowY / rowScale + (23 - elementHeight) / 2))
     end
     -- Anchor every header control to the same row. Do not inherit Blizzard's
     -- stacked calendar/compartment anchors or its clock-inside-zone placement.
