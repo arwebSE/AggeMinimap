@@ -55,7 +55,7 @@ function addon.CreateTerrainRenderer(applyMode)
     if not addon.minimapTileIDs or not C_Minimap or not C_Minimap.SetDrawGroundTextures
         or not C_Minimap.GetDrawGroundTextures or not C_Minimap.GetViewRadius then return end
 
-    local active, previousGround = false, nil
+    local mode, previousGround
     local layer, tiles, driver
     local lastWidth, lastHeight, lastX, lastY, lastIDs, lastRadius
 
@@ -71,23 +71,22 @@ function addon.CreateTerrainRenderer(applyMode)
         map.ZoomOut:SetShown(show)
     end
 
-    local function SetSeparateTerrain(value)
-        if active == value then return end
-        if value then
+    local function SetRenderMode(nextMode)
+        if mode == nextMode then return end
+        if nextMode == "outdoor" then
             previousGround = C_Minimap.GetDrawGroundTextures()
             C_Minimap.SetDrawGroundTextures(false)
-        else
+        elseif mode == "outdoor" then
             C_Minimap.SetDrawGroundTextures(previousGround)
         end
-        active = value
-        layer:SetShown(value)
-        if not value then UpdateZoomHover(Minimap) end
-        applyMode(value)
+        mode = nextMode
+        if layer then layer:SetShown(mode == "outdoor") end
+        if not mode then UpdateZoomHover(Minimap) end
+        applyMode(mode)
     end
 
     local function GetGroundPosition()
-        if (IsIndoors and IsIndoors()) or (IsInInstance and IsInInstance())
-            or GetCVarBool("rotateMinimap") then return end
+        if GetCVarBool("rotateMinimap") then return end
         local north, west, _, instance = UnitPosition("player")
         local radius = C_Minimap.GetViewRadius()
         if type(north) ~= "number" or type(west) ~= "number" or not addon.minimapTileIDs[instance]
@@ -141,22 +140,26 @@ function addon.CreateTerrainRenderer(applyMode)
 
     local function UpdateTerrain()
         local viewport = MinimapCluster and MinimapCluster.MinimapContainer
-        if (active or not InCombatLockdown()) and viewport and Minimap and Minimap:IsVisible() then
+        if (mode or not InCombatLockdown()) and viewport and Minimap and Minimap:IsVisible() then
             local width, height = viewport:GetSize()
-            if width > height then
+            if width > height and not (IsInInstance and IsInInstance()) then
+                if IsIndoors and IsIndoors() then
+                    SetRenderMode("indoor")
+                    return
+                end
                 local x, y, ids, radius = GetGroundPosition()
                 if x then
-                    if active and width == lastWidth and height == lastHeight
+                    if mode == "outdoor" and width == lastWidth and height == lastHeight
                         and x == lastX and y == lastY and ids == lastIDs and radius == lastRadius then return end
                     if DrawTerrain(viewport, width, height, x, y, ids, radius) then
                         lastWidth, lastHeight, lastX, lastY, lastIDs, lastRadius = width, height, x, y, ids, radius
-                        SetSeparateTerrain(true)
+                        SetRenderMode("outdoor")
                         return
                     end
                 end
             end
         end
-        SetSeparateTerrain(false)
+        SetRenderMode(nil)
     end
 
     local elapsed = 0
@@ -168,12 +171,12 @@ function addon.CreateTerrainRenderer(applyMode)
         local ok, err = pcall(UpdateTerrain)
         if not ok then
             driver:SetScript("OnUpdate", nil)
-            SetSeparateTerrain(false)
+            SetRenderMode(nil)
             if geterrorhandler then geterrorhandler()(err) end
-        elseif active then
+        elseif mode then
             UpdateZoomHover(MinimapCluster.MinimapContainer)
         end
-        if not active and stopAfterFallback then driver:Hide() end
+        if not mode and stopAfterFallback then driver:Hide() end
     end
 
     return function(wide)
@@ -183,7 +186,7 @@ function addon.CreateTerrainRenderer(applyMode)
         end
         if driver then
             stopAfterFallback = not wide
-            driver:SetShown(wide or active)
+            driver:SetShown(wide or mode ~= nil)
         end
     end
 end

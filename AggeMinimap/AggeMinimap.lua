@@ -209,9 +209,9 @@ local function ApplyCanvasClamp(cluster)
     cluster:SetClampRectInsets(-clampX, clampX, clampTop, -clampBottom)
 end
 
-local refreshTerrain, separateTerrainActive
+local refreshTerrain, terrainMode, indoorBackground
 local function IsSeparateTerrainActive()
-    if not separateTerrainActive then return false end
+    if terrainMode ~= "outdoor" then return false end
     local width, height = GetVisibleMapSize(Minimap)
     return width > height
 end
@@ -244,14 +244,23 @@ local function ApplyLayout()
     end
     -- The stock container includes room for circular art outside the map.
     -- Fit it to the map, then size the Edit Mode frame explicitly.
-    local useSeparateTerrain = separateTerrainActive and width > height
-    local canvasSize = useSeparateTerrain and height or math.max(width, height)
+    local useVisibleCanvas = terrainMode ~= nil and width > height
+    local canvasSize = useVisibleCanvas and height or math.max(width, height)
     local cropX, cropY = math.max(0, (canvasSize - width) / 2), (canvasSize - height) / 2
     -- Native markers and pings also need a square canvas. On wide terrain,
     -- the shorter side keeps that canvas centered and on-screen.
     map:SetSize(canvasSize, canvasSize)
     container:SetSize(width, height)
-    local span = useSeparateTerrain and 256 or math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
+    local showIndoorBackground = useVisibleCanvas and terrainMode == "indoor"
+    if showIndoorBackground and not indoorBackground then
+        indoorBackground = container:CreateTexture(nil, "BACKGROUND")
+        indoorBackground:SetAllPoints(container)
+        indoorBackground:SetColorTexture(0, 0, 0, 1)
+    end
+    if indoorBackground then
+        if showIndoorBackground then indoorBackground:Show() else indoorBackground:Hide() end
+    end
+    local span = useVisibleCanvas and 256 or math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
     local mask = span == 256 and "Square.tga" or ("Masks\\" .. (width > height and "W" or "T") .. span .. ".tga")
     map:SetMaskTexture("Interface\\AddOns\\AggeMinimap\\" .. mask)
     map:SetHitRectInsets(cropX, cropX, cropY, cropY)
@@ -380,17 +389,18 @@ local function ApplyLayout()
 end
 
 if addon and addon.CreateTerrainRenderer then
-    refreshTerrain = addon.CreateTerrainRenderer(function(active)
-        separateTerrainActive = active
+    refreshTerrain = addon.CreateTerrainRenderer(function(mode)
+        local previousMode = terrainMode
+        terrainMode = mode
         renderedMap = nil
         ApplyLayout()
         local cluster = MinimapCluster
         local manager = EditModeManagerFrame
-        if active and not InCombatLockdown() and cluster and cluster.ApplySystemAnchor
+        if mode and not previousMode and not InCombatLockdown() and cluster and cluster.ApplySystemAnchor
             and cluster.systemInfo and cluster.systemInfo.anchorInfo
             and manager and not manager:IsEditModeActive() then
             -- The native fallback can clamp the frame during login before
-            -- outdoor tiles are ready. Restore Edit Mode's original anchor.
+            -- the right render mode is ready. Restore Edit Mode's anchor.
             cluster:ApplySystemAnchor()
         end
     end)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.8
+
+- Keep wide maps in place when entering buildings. The indoor minimap uses a centered native square and fills the surrounding area with black to match the indoor background.
+
 ## 1.3.7
 
 - Fix the offset of nearby Blizzard quest and tracking markers on wide maps by restoring a centered square for native markers and pings. Wide terrain still reaches the screen edge in supported outdoor zones. Distant native markers can still gather at the inner square's edge.
