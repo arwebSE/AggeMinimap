@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.3.6
 
-- Edit Mode now selects the visible rectangular map and header instead of the hidden square canvas. Screen clamping separately protects terrain alignment and no longer reserves an extra header margin outside the canvas.
-- Fixed player-arrow, terrain, and ping offsets in rectangular layouts by keeping the native minimap canvas square and displaying a centered rectangular crop. Controls, borders, button placement, and mouse input follow the visible area.
+- Wide maps can sit flush against the screen edge in supported outdoor zones with Rotate Minimap off. The renderer starts automatically and matches the terrain and addon waypoints to Blizzard's tracking scale across the rectangle.
+- RestedXP and other HereBeDragons pins refresh when the map resizes. In the wide outdoor renderer, waypoints outside the visible terrain are hidden.
+- Edit Mode highlights the visible map and header and restores the saved position after outdoor terrain loads. The native fallback keeps its square canvas on-screen to preserve terrain and ping alignment.
+- Added Square and 4:3 Rectangle presets while keeping custom sizes. Hover the visible wide map to reveal the zoom buttons.
 - Added an experimental, default-off Quest-area outline fix toggle to hide the native decorative quest-area ring for visual comparison. Shaded objective areas and quest icons are unchanged; switching it off restores the ring.
 
 ## 1.3.5

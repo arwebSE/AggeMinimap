@@ -7,7 +7,7 @@ $camelot = Get-Content -LiteralPath (Join-Path $addon 'AggeMinimap_Camelot.toc')
 if ($toc -cne $camelot) { throw 'The default and Camelot manifests must match.' }
 if ($toc -notmatch '(?m)^## Version: ([0-9A-Za-z.-]+)\r?$') { throw 'Missing or invalid addon version.' }
 $version = $Matches[1]
-$files = @('AggeMinimap.toc', 'AggeMinimap_Camelot.toc', 'AggeMinimap.lua', 'Square.tga', 'Icon.tga')
+$files = @('AggeMinimap.toc', 'AggeMinimap_Camelot.toc', 'AggeMinimap.lua', 'Terrain.lua', 'MinimapTiles.lua', 'Square.tga', 'Icon.tga')
 $files += Get-ChildItem -LiteralPath (Join-Path $addon 'Masks') -Filter '*.tga' | ForEach-Object { 'Masks/' + $_.Name }
 foreach ($file in $files) {
     if (-not (Test-Path -LiteralPath (Join-Path $addon $file) -PathType Leaf)) { throw "Missing addon file: $file" }

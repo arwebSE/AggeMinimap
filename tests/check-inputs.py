@@ -10,7 +10,7 @@ for name in ('AggeMinimap.toc', 'AggeMinimap_Camelot.toc'):
     assert '## Category: Map' in lines, name
     assert r'## IconTexture: Interface\AddOns\AggeMinimap\Icon.tga' in lines, name
     files = [line for line in lines if line and not line.startswith('#')]
-    assert files == ['AggeMinimap.lua'], (name, files)
+    assert files == ['MinimapTiles.lua', 'Terrain.lua', 'AggeMinimap.lua'], (name, files)
     for filename in files:
         assert (root / 'AggeMinimap' / filename).is_file(), filename
 

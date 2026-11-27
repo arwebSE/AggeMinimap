@@ -8,6 +8,8 @@ expected = {
     'AggeMinimap/AggeMinimap.toc',
     'AggeMinimap/AggeMinimap_Camelot.toc',
     'AggeMinimap/AggeMinimap.lua',
+    'AggeMinimap/Terrain.lua',
+    'AggeMinimap/MinimapTiles.lua',
     'AggeMinimap/Icon.tga',
     'AggeMinimap/Square.tga',
     'AggeMinimap/LICENSE',

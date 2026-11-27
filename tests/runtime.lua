@@ -192,6 +192,9 @@ local function MakeMinimap()
     function MinimapCluster:Layout()
         self:SetSize(self.fixedWidth or 300, self.fixedHeight or 300)
     end
+    function MinimapCluster:UpdateClampOffsets()
+        self:SetClampRectInsets(0, 0, 0, 0)
+    end
     function MinimapCluster:UpdateMinimapConfig()
         Minimap.mask = 'round'
         MinimapCompassTextureUnderlay.alpha = 1
@@ -216,7 +219,7 @@ end
 assert(Minimap.mask == 'Interface\\AddOns\\AggeMinimap\\Square.tga')
 assert(Minimap.wheel == true)
 assert(GetMinimapShape() == 'SQUARE')
-assert(hooks == 4)
+assert(hooks == 5)
 assert(#frames == 2 and frames[2].textures == 4)
 assert(frames[2].level == 5)
 assert(MinimapCompassTexture.alpha == 0)
@@ -233,7 +236,7 @@ assert(Minimap.mask ~= 'round')
 assert(MinimapCompassTextureUnderlay.alpha == 0)
 Fire('PLAYER_ENTERING_WORLD')
 Fire('PLAYER_ENTERING_WORLD')
-assert(#frames == 2 and hooks == 4, 'must not duplicate frames or hooks')
+assert(#frames == 2 and hooks == 5, 'must not duplicate frames or hooks')
 assert(Minimap.OnMouseUp == click and Minimap.OnMouseWheel == wheel)
 assert(Minimap.zoomUpdates == zoomUpdates, 'unchanged layouts must not trigger render refresh')
 assert(Minimap.scriptHooks == 2, 'right-click and discovery hooks must only be installed once')
@@ -469,10 +472,18 @@ for _, zoom in ipairs({0, 2, 5}) do
     end
 end
 local refreshes = Minimap.zoomUpdates
+local pinRefreshes = 0
+local pins = {Minimap = Minimap, SetMinimapObject = function(_, map)
+    assert(map == Minimap and map:GetZoom() == 5)
+    pinRefreshes = pinRefreshes + 1
+end}
+LibStub = function(name) if name == "HereBeDragons-Pins-2.0" then return pins end end
 MinimapCluster:SetEditModeScale(1.5)
 assert(Minimap.zoomUpdates == refreshes + 2, 'Edit Mode scale changes must refresh rendering')
 MinimapCluster:Layout()
 assert(Minimap.zoomUpdates == refreshes + 2, 'repeated layouts must not refresh rendering')
+assert(pinRefreshes == 1, 'pin placement must be refreshed once for a changed layout')
+LibStub = nil
 AggeMinimapLinkAspect:OnClick()
 for _, dimensions in ipairs({{360, 160}, {160, 360}, {300, 200}, {200, 300}}) do
     AggeMinimapWidth:SetValue(dimensions[1])
@@ -607,5 +618,42 @@ Fire('PLAYER_REGEN_ENABLED')
 assert(Minimap.questRingAlpha == 1 and not AggeMinimapQuestAreaFix.checked)
 AggeMinimapResetDefaults:OnClick()
 assert(not AggeMinimapDB.questAreaFix)
+
+AggeMinimapOptionsRectanglePreset:OnClick()
+assert(AggeMinimapRectanglePreset.selected and AggeMinimapLinkAspect.selected)
+assert(MinimapCluster.MinimapContainer.width > MinimapCluster.MinimapContainer.height)
+MinimapCluster:SetHeaderUnderneath(true)
+local requiredTopInset = MinimapCluster.clampInsets[3]
+MinimapCluster:UpdateClampOffsets()
+assert(requiredTopInset > 0 and MinimapCluster.clampInsets[3] == requiredTopInset,
+    'Edit Mode must preserve the native canvas clamp when it recalculates selection offsets')
+AggeMinimapSquarePreset:OnClick()
+assert(AggeMinimapOptionsSquarePreset.selected and not AggeMinimapRectanglePreset.selected)
+assert(MinimapCluster.MinimapContainer.width == MinimapCluster.MinimapContainer.height)
+for _, inset in ipairs(MinimapCluster.clampInsets) do
+    assert(inset == 0, 'the square preset must clear the rectangle screen insets')
+end
+
+-- A southeast waypoint must use the same world coordinates on both axes
+-- when the wide renderer scales them to different pixel dimensions.
+local terrainAddon = {}
+assert(loadfile('AggeMinimap/Terrain.lua'))('AggeMinimap', terrainAddon)
+local waypoint = Region()
+waypoint:SetSize(12, 12)
+function waypoint:GetEffectiveScale() return 1 end
+function Minimap:GetEffectiveScale() return 1 end
+C_Minimap = {GetViewRadius = function() return 100 end}
+GetCVarBool = function() return false end
+local pinLibrary = {Minimap = Minimap, minimapPins = {[waypoint] = {}}, AddMinimapIconWorld = function() end}
+function pinLibrary:GetVectorToIcon()
+    -- HBD's world deltas for a location 60 yards east, 20 yards south.
+    return -math.atan2(60, -20) + 2 * math.pi, math.sqrt(60 * 60 + 20 * 20)
+end
+MinimapCluster.MinimapContainer:SetSize(360, Minimap:GetHeight())
+terrainAddon.WatchTerrainPins(pinLibrary, function() return true end)
+waypoint:SetPoint('CENTER', Minimap, 'CENTER', 0, 0)
+local _, _, _, waypointX, waypointY = waypoint:GetPoint()
+assert(math.abs(waypointX - 60 * 360 / 200) < 0.001 and math.abs(waypointY + 20 * Minimap:GetHeight() / 200) < 0.001,
+    'wide waypoint projection must preserve native east and south offsets')
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")

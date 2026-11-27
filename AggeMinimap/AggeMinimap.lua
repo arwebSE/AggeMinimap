@@ -1,4 +1,4 @@
-local addonName = ...
+local addonName, addon = ...
 local addonVersion = C_AddOns.GetAddOnMetadata(addonName, "Version") or "unknown"
 local events = CreateFrame("Frame")
 local border
@@ -200,6 +200,28 @@ local function GetPositionSetting(key, choices, default)
     return default
 end
 
+local clampX, clampTop, clampBottom = 0, 0, 0
+local function ApplyCanvasClamp(cluster)
+    if InCombatLockdown() then
+        events:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    cluster:SetClampRectInsets(-clampX, clampX, clampTop, -clampBottom)
+end
+
+local refreshTerrain, separateTerrainActive
+local function IsSeparateTerrainActive()
+    if not separateTerrainActive then return false end
+    local width, height = GetVisibleMapSize(Minimap)
+    return width > height
+end
+
+local function WatchTerrainPins(pins)
+    if addon and addon.WatchTerrainPins and pins and pins.Minimap == Minimap then
+        addon.WatchTerrainPins(pins, IsSeparateTerrainActive)
+    end
+end
+
 local function ApplyLayout()
     if InCombatLockdown() then
         events:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -222,13 +244,14 @@ local function ApplyLayout()
     end
     -- The stock container includes room for circular art outside the map.
     -- Fit it to the map, then size the Edit Mode frame explicitly.
-    local canvasSize = math.max(width, height)
-    local cropX, cropY = (canvasSize - width) / 2, (canvasSize - height) / 2
-    -- Native terrain, player arrow, and pings share a projection only on a
-    -- square canvas. Crop its center; never distort that native projection.
-    map:SetSize(canvasSize, canvasSize)
+    local useSeparateTerrain = separateTerrainActive and width > height
+    local canvasSize = useSeparateTerrain and height or math.max(width, height)
+    local cropX, cropY = math.max(0, (canvasSize - width) / 2), (canvasSize - height) / 2
+    -- The native ground needs a square canvas. When our terrain renderer
+    -- draws the ground, give Blizzard's tracking layer the full rectangle.
+    map:SetSize(useSeparateTerrain and width or canvasSize, canvasSize)
     container:SetSize(width, height)
-    local span = math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
+    local span = useSeparateTerrain and 256 or math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
     local mask = span == 256 and "Square.tga" or ("Masks\\" .. (width > height and "W" or "T") .. span .. ".tga")
     map:SetMaskTexture("Interface\\AddOns\\AggeMinimap\\" .. mask)
     map:SetHitRectInsets(cropX, cropX, cropY, cropY)
@@ -258,10 +281,10 @@ local function ApplyLayout()
     -- Keep only the actual native canvas on-screen. Clamp bounds can extend
     -- beyond the selection without reserving a second header-sized margin.
     local mapTop = outerSpacing + (headerUnderneath and 0 or rowHeight + headerGap)
-    local clampX = math.max(0, cropX * scale - outerSpacing)
-    local clampTop = math.max(0, cropY * scale - mapTop)
-    local clampBottom = math.max(0, mapTop + (height + cropY) * scale - frameHeight)
-    cluster:SetClampRectInsets(-clampX, clampX, clampTop, -clampBottom)
+    clampX = math.max(0, cropX * scale - outerSpacing)
+    clampTop = math.max(0, cropY * scale - mapTop)
+    clampBottom = math.max(0, mapTop + (height + cropY) * scale - frameHeight)
+    ApplyCanvasClamp(cluster)
     cluster:SetClampedToScreen(true)
 
     container:ClearAllPoints()
@@ -343,8 +366,34 @@ local function ApplyLayout()
             local zoom = map:GetZoom()
             map:SetZoom(zoom == 0 and 1 or zoom - 1)
             map:SetZoom(zoom)
+
+            -- HereBeDragons caches dimensions, and the zoom is restored
+            -- before its next update. Refresh pins at the new size now.
+            local pins = LibStub and LibStub("HereBeDragons-Pins-2.0", true)
+            if pins and pins.Minimap == map and type(pins.SetMinimapObject) == "function" then
+                WatchTerrainPins(pins)
+                pins:SetMinimapObject(map)
+            end
         end
     end
+    if refreshTerrain then refreshTerrain(width > height) end
+end
+
+if addon and addon.CreateTerrainRenderer then
+    refreshTerrain = addon.CreateTerrainRenderer(function(active)
+        separateTerrainActive = active
+        renderedMap = nil
+        ApplyLayout()
+        local cluster = MinimapCluster
+        local manager = EditModeManagerFrame
+        if active and not InCombatLockdown() and cluster and cluster.ApplySystemAnchor
+            and cluster.systemInfo and cluster.systemInfo.anchorInfo
+            and manager and not manager:IsEditModeActive() then
+            -- The native fallback can clamp the frame during login before
+            -- outdoor tiles are ready. Restore Edit Mode's original anchor.
+            cluster:ApplySystemAnchor()
+        end
+    end)
 end
 
 local settingsControls = {}
@@ -409,13 +458,16 @@ end
 
 local function RefreshSettingsControls()
     refreshingControls = true
+    local width, height = GetMapDimension("width"), GetMapDimension("height")
     for _, controls in ipairs(settingsControls) do
         controls.spacing:SetValue(GetSpacing())
-        controls.width:SetValue(GetMapDimension("width"))
-        controls.height:SetValue(GetMapDimension("height"))
+        controls.width:SetValue(width)
+        controls.height:SetValue(height)
         controls.spacingText:SetText("Spacing: " .. GetSpacing() .. " px")
-        controls.widthText:SetText("Width: " .. GetMapDimension("width") .. " px")
-        controls.heightText:SetText("Height: " .. GetMapDimension("height") .. " px")
+        controls.widthText:SetText("Width: " .. width .. " px")
+        controls.heightText:SetText("Height: " .. height .. " px")
+        controls.squarePreset:Select(width == height)
+        controls.rectanglePreset:Select(math.abs(height - width * 3 / 4) <= 0.5)
         controls.link:SetText(IsAspectLinked() and "Aspect ratio: Linked" or "Aspect ratio: Unlinked")
         controls.link:Select(IsAspectLinked())
         controls.alignButtons:SetChecked(AlignAddonButtons())
@@ -433,8 +485,33 @@ end
 local function CreateSettingsControls(parent, prefix)
     local controls = {}
     SettingsText(parent, "MAP LAYOUT", 0, 0)
-    SettingsText(parent, "Adjust map dimensions and header gap.", 0, -23, "GameFontHighlightSmall")
     SettingsText(parent, "BUTTON POSITIONS", 286, 0)
+    local function ShapePreset(suffix, label, x, ratio, tooltip)
+        local button = SettingsButton(parent, prefix .. suffix, label, 110, x, -20)
+        button:SetScript("OnClick", function()
+            AggeMinimapDB = type(AggeMinimapDB) == "table" and AggeMinimapDB or {}
+            AggeMinimapDB.linkAspect, AggeMinimapDB.aspectRatio = true, ratio
+            SetMapDimension("width", GetMapDimension("width"))
+            RefreshSettingsControls()
+            ApplyLayout()
+        end)
+        button:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(label, 1, 0.82, 0)
+            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        local function HideTooltip(self)
+            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+        end
+        button:HookScript("OnLeave", HideTooltip)
+        button:HookScript("OnHide", HideTooltip)
+        return button
+    end
+    controls.squarePreset = ShapePreset("SquarePreset", "Square", 8, 1,
+        "Fits against the screen edge in Edit Mode. Set spacing to 0 for a flush edge.")
+    controls.rectanglePreset = ShapePreset("RectanglePreset", "Rectangle (4:3)", 124, 4 / 3,
+        "Wide layout with a centered arrow. Supports flush placement outdoors with Rotate Minimap off where terrain tiles are available.")
     local divider = parent:CreateTexture(nil, "BACKGROUND")
     divider:SetColorTexture(0.65, 0.45, 0.2, 0.45)
     divider:SetPoint("TOPLEFT", 262, 0)
@@ -756,6 +833,11 @@ local function ApplyStyle()
             if type(cluster.Layout) == "function" then
                 hooksecurefunc(cluster, "Layout", ApplyLayout)
             end
+            -- Edit Mode recomputes its clamp from the visible selection.
+            -- Preserve the larger native canvas limit before movement starts.
+            if type(cluster.UpdateClampOffsets) == "function" then
+                hooksecurefunc(cluster, "UpdateClampOffsets", ApplyCanvasClamp)
+            end
         end
         if header and header ~= hookedHeader and header.GetPoint then
             local point = header:GetPoint(1)
@@ -784,6 +866,7 @@ events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name ~= addonName and name ~= "Blizzard_Minimap" and name ~= "Blizzard_TimeManager"
         and name ~= "Blizzard_Settings" and name ~= "Blizzard_Settings_Shared" then
+        WatchTerrainPins(LibStub and LibStub("HereBeDragons-Pins-2.0", true))
         QueueAddonButtonScan()
         return
     end
