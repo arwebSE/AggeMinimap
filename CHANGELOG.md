@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.7
+
+- Fix the offset of nearby Blizzard quest and tracking markers on wide maps by restoring a centered square for native markers and pings. Wide terrain still reaches the screen edge in supported outdoor zones. Distant native markers can still gather at the inner square's edge.
+
 ## 1.3.6
 
 - Wide maps can sit flush against the screen edge in supported outdoor zones with Rotate Minimap off. The renderer starts automatically and matches the terrain and addon waypoints to Blizzard's tracking scale across the rectangle.

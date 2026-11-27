@@ -24,7 +24,7 @@ Right-click the minimap, type **`/amm`**, or open **Options → AddOns → AggeM
 
 For **Forever 1.60.1**. Use one minimap skin at a time.
 
-Wide maps automatically draw terrain across the full rectangle outdoors in supported zones with Rotate Minimap off. They can sit against the top or bottom edge. The terrain stretches horizontally to match Blizzard's tracking positions across the full rectangle. Other layouts use the native terrain renderer. Cropped native rectangles need an inset along their cropped edges.
+Wide maps automatically draw terrain across the full rectangle outdoors in supported zones with Rotate Minimap off. They can sit against the top or bottom edge. Blizzard's markers and pings use a centered square and may appear at its edge when their locations are farther away. HereBeDragons waypoints can use the full rectangle. Other layouts use the native terrain renderer. Cropped native rectangles need an inset along their cropped edges.
 
 [Report an issue](https://github.com/arwebSE/AggeMinimap/issues) · [AggeHealBot](https://www.curseforge.com/wow/addons/aggehealbot)
 

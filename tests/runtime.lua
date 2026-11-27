@@ -634,8 +634,7 @@ for _, inset in ipairs(MinimapCluster.clampInsets) do
     assert(inset == 0, 'the square preset must clear the rectangle screen insets')
 end
 
--- A southeast waypoint must use the same world coordinates on both axes
--- when the wide renderer scales them to different pixel dimensions.
+-- Wide terrain uses the same scale as the centered native square on both axes.
 local terrainAddon = {}
 assert(loadfile('AggeMinimap/Terrain.lua'))('AggeMinimap', terrainAddon)
 local waypoint = Region()
@@ -653,7 +652,8 @@ MinimapCluster.MinimapContainer:SetSize(360, Minimap:GetHeight())
 terrainAddon.WatchTerrainPins(pinLibrary, function() return true end)
 waypoint:SetPoint('CENTER', Minimap, 'CENTER', 0, 0)
 local _, _, _, waypointX, waypointY = waypoint:GetPoint()
-assert(math.abs(waypointX - 60 * 360 / 200) < 0.001 and math.abs(waypointY + 20 * Minimap:GetHeight() / 200) < 0.001,
+local unitsPerYard = Minimap:GetHeight() / 200
+assert(math.abs(waypointX - 60 * unitsPerYard) < 0.001 and math.abs(waypointY + 20 * unitsPerYard) < 0.001,
     'wide waypoint projection must preserve native east and south offsets')
 
 originalPrint("PASS: Lua runtime checks (" .. (delayed and "delayed minimap load" or "normal minimap load") .. ").")

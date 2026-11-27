@@ -247,9 +247,9 @@ local function ApplyLayout()
     local useSeparateTerrain = separateTerrainActive and width > height
     local canvasSize = useSeparateTerrain and height or math.max(width, height)
     local cropX, cropY = math.max(0, (canvasSize - width) / 2), (canvasSize - height) / 2
-    -- The native ground needs a square canvas. When our terrain renderer
-    -- draws the ground, give Blizzard's tracking layer the full rectangle.
-    map:SetSize(useSeparateTerrain and width or canvasSize, canvasSize)
+    -- Native markers and pings also need a square canvas. On wide terrain,
+    -- the shorter side keeps that canvas centered and on-screen.
+    map:SetSize(canvasSize, canvasSize)
     container:SetSize(width, height)
     local span = useSeparateTerrain and 256 or math.floor(math.min(width, height) / canvasSize * 128 + 0.5) * 2
     local mask = span == 256 and "Square.tga" or ("Masks\\" .. (width > height and "W" or "T") .. span .. ".tga")

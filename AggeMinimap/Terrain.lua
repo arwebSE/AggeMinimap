@@ -25,9 +25,9 @@ function addon.WatchTerrainPins(library, isActive)
             -- HereBeDragons' world X points west and world Y points north.
             -- Its bearing is zero north and increases toward west.
             local width, height = viewport:GetSize()
-            local range = 2 * radius
-            local x = -math.sin(bearing) * distance * width / range
-            local y = math.cos(bearing) * distance * height / range
+            local unitsPerYard = map:GetHeight() / (2 * radius)
+            local x = -math.sin(bearing) * distance * unitsPerYard
+            local y = math.cos(bearing) * distance * unitsPerYard
             local pinScale = self:GetEffectiveScale() / map:GetEffectiveScale()
             local halfWidth = (width - self:GetWidth() * pinScale) / 2
             local halfHeight = (height - self:GetHeight() * pinScale) / 2
@@ -108,12 +108,12 @@ function addon.CreateTerrainRenderer(applyMode)
 
     local function DrawTerrain(viewport, width, height, x, y, ids, radius)
         if not layer then CreateTerrainLayer(viewport) end
-        -- Blizzard scales its tracking positions by each dimension of the
-        -- rectangular minimap. Show the same world span on each axis.
-        local halfSpan = radius / tileSize
-        local tileWidth, tileHeight = width / (2 * halfSpan), height / (2 * halfSpan)
-        local left, top = x - halfSpan, y - halfSpan
-        local right, bottom = x + halfSpan, y + halfSpan
+        -- Match the centered native square's scale on both axes. The extra
+        -- width shows more terrain at the same scale.
+        local tilePixels = tileSize * height / (2 * radius)
+        local halfWidth, halfHeight = width / (2 * tilePixels), height / (2 * tilePixels)
+        local left, top = x - halfWidth, y - halfHeight
+        local right, bottom = x + halfWidth, y + halfHeight
         local count = 0
         for row = math.floor(top), math.ceil(bottom) - 1 do
             for col = math.floor(left), math.ceil(right) - 1 do
@@ -129,8 +129,8 @@ function addon.CreateTerrainRenderer(applyMode)
                 local x1, x2 = math.max(left, col), math.min(right, col + 1)
                 local y1, y2 = math.max(top, row), math.min(bottom, row + 1)
                 texture:ClearAllPoints()
-                texture:SetPoint("TOPLEFT", layer, "TOPLEFT", (x1 - left) * tileWidth, -(y1 - top) * tileHeight)
-                texture:SetSize((x2 - x1) * tileWidth, (y2 - y1) * tileHeight)
+                texture:SetPoint("TOPLEFT", layer, "TOPLEFT", (x1 - left) * tilePixels, -(y1 - top) * tilePixels)
+                texture:SetSize((x2 - x1) * tilePixels, (y2 - y1) * tilePixels)
                 texture:SetTexCoord(x1 - col, x2 - col, y1 - row, y2 - row)
                 texture:Show()
             end
